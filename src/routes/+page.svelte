@@ -21,6 +21,7 @@
 	let previousParsedItems: string[] = []; // Track what was previously in the input
 	let showArchiveHint = $state(false);
 	let hasArchivedList = $state(false);
+	let showDoneMessage = $state(false);
 
 	onMount(async () => {
 		// Load items from IndexedDB
@@ -70,6 +71,12 @@
 		
 		// Mark that we have archived list
 		hasArchivedList = true;
+		
+		// Show "Done" message for 3 seconds
+		showDoneMessage = true;
+		setTimeout(() => {
+			showDoneMessage = false;
+		}, 3000);
 		
 		// Keep items in UI state to show what was bought
 		// They will disappear when user starts typing
@@ -308,6 +315,32 @@
 		}
 		currentSwipeId = null;
 	}
+
+	async function shareList() {
+		// Prepare the list text
+		const listText = items
+			.map((item: ShoppingItem) => `${item.done ? '✓' : '○'} ${item.text}`)
+			.join('\n');
+		
+		const shareData = {
+			title: 'Shopping List',
+			text: listText
+		};
+
+		try {
+			if (navigator.share) {
+				await navigator.share(shareData);
+				console.log('✅ List shared successfully');
+			} else {
+				// Fallback: copy to clipboard
+				await navigator.clipboard.writeText(listText);
+				console.log('📋 List copied to clipboard');
+				alert('List copied to clipboard!');
+			}
+		} catch (err) {
+			console.error('❌ Error sharing:', err);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -318,9 +351,39 @@
 <div class="min-h-screen bg-white p-4">
 	<div class="mx-auto max-w-2xl">
 		<!-- Header -->
-		<div class="mb-6">
-			<h1 class="text-3xl font-bold text-gray-800">Shopping List</h1>
+		<div class="mb-6 flex items-center justify-between">
+			<h1 class="text-3xl font-semibold text-gray-800">Shopping List</h1>
+			{#if items.length > 0}
+				<button
+					onclick={shareList}
+					class="text-gray-600 hover:text-gray-900 transition-colors p-2"
+					aria-label="Share list"
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						width="24"
+						height="24"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+						<polyline points="16 6 12 2 8 6" />
+						<line x1="12" y1="2" x2="12" y2="15" />
+					</svg>
+				</button>
+			{/if}
 		</div>
+
+		<!-- Done message (shown for 3 seconds after archiving) -->
+		{#if showDoneMessage}
+			<div class="mb-4 text-gray-600 text-base">
+				Done. Next time you'll probably write a new one.
+			</div>
+		{/if}
 
 		<!-- Input Textarea with hidden form for iOS support -->
 		<form onsubmit={handleFormSubmit} class="mb-6">
@@ -349,9 +412,9 @@
 						onclick={restoreArchivedList}
 						class="underline hover:text-gray-900 transition-colors"
 					>
-						<span class="inline-block mr-1">↻</span>Restore previous list
+						Old list is still here.
 					</button>
-					<span> or type to start new one</span>
+					<span> Type to start a new one.</span>
 				</div>
 			{:else}
 				<div class="py-8 text-center text-gray-400">
@@ -361,20 +424,20 @@
 			{:else}
 				{#each items as item (item.id)}
 					<div
-						class="py-2 px-1 cursor-pointer relative overflow-hidden"
+						class="py-2 px-1 cursor-pointer relative"
+						role="button"
+						tabindex="0"
 						ontouchstart={createTouchStartHandler(item.id)}
 						ontouchmove={createTouchMoveHandler(item.id)}
 						ontouchend={handleTouchEnd}
 						onclick={() => handleCheckboxChange(item.id)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								handleCheckboxChange(item.id);
+							}
+						}}
 					>
-						<!-- Swipe progress "ink" effect -->
-						{#if swipeProgress[item.id] > 0}
-							<div
-								class="absolute inset-0 bg-gray-200 pointer-events-none transition-all duration-100"
-								style="width: {swipeProgress[item.id]}%; opacity: {Math.min(swipeProgress[item.id] / 50, 0.5)}"
-							></div>
-						{/if}
-						
 						<!-- Hidden checkbox for accessibility/state management -->
 						<input
 							type="checkbox"
@@ -383,8 +446,17 @@
 							tabindex="-1"
 							aria-hidden="true"
 						/>
+						
+						<!-- Swipe "ink" line that grows with finger -->
+						{#if swipeProgress[item.id] > 0 && !item.done}
+							<div
+								class="absolute left-1 top-1/2 h-[2px] bg-gray-700 pointer-events-none"
+								style="width: {swipeProgress[item.id]}%; transform: translateY(-50%); transition: width 0.05s linear;"
+							></div>
+						{/if}
+						
 						<span
-							class="block text-lg transition-all relative z-10 {item.done
+							class="block text-lg relative {item.done
 								? 'text-gray-400 line-through'
 								: 'text-gray-800'}"
 						>
