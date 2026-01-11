@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import {
 		getAllItems,
 		addItem,
@@ -22,37 +23,76 @@
 	let showArchiveHint = $state(false);
 	let hasArchivedList = $state(false);
 	let showDoneMessage = $state(false);
+	let allItemsDone = $state(false); // Track if all items are done (but not archived yet)
+	let isScrolled = $state(false);
 
-	onMount(async () => {
+	onMount(() => {
 		// Load items from IndexedDB
-		items = await getAllItems();
-		// Populate the set with existing items
-		items.forEach((item: ShoppingItem) => addedItemsSet.add(item.text.toLowerCase()));
+		(async () => {
+			items = await getAllItems();
+			// Populate the set with existing items
+			items.forEach((item: ShoppingItem) => addedItemsSet.add(item.text.toLowerCase()));
+			
+			// Check if there's an archived list
+			const archived = await getArchivedList();
+			hasArchivedList = archived !== null;
+			
+			// Show hint if list is empty and there's an archived list
+			showArchiveHint = items.length === 0 && hasArchivedList;
+		})();
 		
-		// Check if there's an archived list
-		const archived = await getArchivedList();
-		hasArchivedList = archived !== null;
+		// Listen for scroll events
+		const handleScroll = () => {
+			const wasScrolled = isScrolled;
+			isScrolled = window.scrollY > 20;
+			
+			// Adjust textarea height when scroll state changes
+			if (wasScrolled !== isScrolled) {
+				autoGrow();
+			}
+		};
+		window.addEventListener('scroll', handleScroll);
 		
-		// Show hint if list is empty and there's an archived list
-		showArchiveHint = items.length === 0 && hasArchivedList;
+		return () => {
+			window.removeEventListener('scroll', handleScroll);
+		};
 	});
 
 	function checkIfAllDone() {
 		console.log('🔍 checkIfAllDone called, items:', items.length);
 		// Only check if there are items
-		if (items.length === 0) return;
+		if (items.length === 0) {
+			allItemsDone = false;
+			showDoneMessage = false;
+			return;
+		}
 		
 		const allDone = items.every((item: ShoppingItem) => item.done);
 		console.log('✅ All done?', allDone);
-		if (allDone) {
-			console.log('🗂️ Archiving...');
-			archiveAndClear();
+		
+		if (allDone && !allItemsDone) {
+			// First time all items are done - show message and clear input
+			console.log('✅ All items done - showing message and clearing input');
+			allItemsDone = true;
+			showDoneMessage = true;
+			
+			// Clear the input
+			inputText = '';
+			
+			// Hide message after 3 seconds
+			setTimeout(() => {
+				showDoneMessage = false;
+			}, 3000);
+		} else if (!allDone && allItemsDone) {
+			// User unchecked something - reset the flag
+			console.log('↩️ User unchecked item - resetting done state');
+			allItemsDone = false;
+			showDoneMessage = false;
 		}
 	}
 
 	async function archiveAndClear() {
 		console.log('📦 archiveAndClear START');
-		console.log('Before clear - inputText:', inputText);
 		
 		// Create plain object copy (remove Svelte proxy)
 		const plainItems = JSON.parse(JSON.stringify(items));
@@ -63,24 +103,15 @@
 		// Clear ALL items from IndexedDB immediately
 		await clearAllItems();
 		
-		// Clear the input (fresh start)
-		inputText = '';
-		
-		console.log('After clear - inputText:', inputText);
-		console.log('hasArchivedList:', true);
-		
 		// Mark that we have archived list
 		hasArchivedList = true;
 		
-		// Show "Done" message for 3 seconds
-		showDoneMessage = true;
-		setTimeout(() => {
-			showDoneMessage = false;
-		}, 3000);
+		// Clear state - items will fade out via transition
+		items = [];
+		addedItemsSet.clear();
+		allItemsDone = false;
 		
-		// Keep items in UI state to show what was bought
-		// They will disappear when user starts typing
-		console.log('📦 archiveAndClear DONE - items still visible:', items.length);
+		console.log('📦 archiveAndClear DONE - items cleared from state');
 	}
 
 	async function restoreArchivedList() {
@@ -105,12 +136,25 @@
 		console.log('✅ Restored', items.length, 'items with their done status');
 		showArchiveHint = false;
 		hasArchivedList = false; // Back to normal state
+		
+		// Focus input at the end to continue typing
+		if (textareaElement) {
+			setTimeout(() => {
+				textareaElement.focus();
+				// Set cursor to end of text
+				const length = inputText.length;
+				textareaElement.setSelectionRange(length, length);
+			}, 100);
+		}
 	}
 
 	function autoGrow() {
 		if (!textareaElement) return;
 		textareaElement.style.height = 'auto';
-		const newHeight = Math.min(textareaElement.scrollHeight, window.innerHeight * 0.5);
+		
+		// If scrolled, limit to ~2 lines (~80px), otherwise up to 50% of screen
+		const maxHeight = isScrolled ? 80 : window.innerHeight * 0.5;
+		const newHeight = Math.min(textareaElement.scrollHeight, maxHeight);
 		textareaElement.style.height = newHeight + 'px';
 	}
 
@@ -197,6 +241,17 @@
 		
 		autoGrow();
 		
+		// If user starts typing when all items are done -> archive and start fresh
+		if (inputText.length > 0 && allItemsDone && items.length > 0) {
+			console.log('🆕 User starting new list after completing old one - archiving now');
+			await archiveAndClear();
+			// Clear input
+			inputText = '';
+			// Show hint
+			showArchiveHint = true;
+			return;
+		}
+		
 		// If user starts typing after archiving, clear the old list from UI and show hint
 		if (inputText.length > 0 && hasArchivedList && items.length > 0) {
 			console.log('🆕 User starting new list - clearing old one and showing hint');
@@ -231,6 +286,13 @@
 				items = [];
 				addedItemsSet.clear();
 				showArchiveHint = true; // Show hint when clearing
+			}
+			
+			// If text doesn't end with separator, add comma to process last item
+			const trimmed = inputText.trim();
+			if (trimmed && !trimmed.endsWith(',') && !trimmed.endsWith('\n')) {
+				console.log('📋 Paste: adding comma to process last item');
+				inputText = inputText + ',';
 			}
 			
 			await checkAndAddNewItems();
@@ -292,8 +354,8 @@
 		// Update visual progress (cap at 100%)
 		swipeProgress = { ...swipeProgress, [itemId]: Math.min(swipePercentage, 100) };
 
-		// Check if swiped 40-60% of the width from left to right
-		if (swipePercentage >= 40 && swipePercentage <= 60) {
+		// Check if swiped 30% or more of the element width from left to right
+		if (swipePercentage >= 30) {
 			// Mark as done
 			const item = items.find((i: ShoppingItem) => i.id === itemId);
 			if (item && !item.done) {
@@ -317,13 +379,12 @@
 	}
 
 	async function shareList() {
-		// Prepare the list text
+		// Prepare the list text - simple comma-separated (like SMS)
 		const listText = items
-			.map((item: ShoppingItem) => `${item.done ? '✓' : '○'} ${item.text}`)
-			.join('\n');
+			.map((item: ShoppingItem) => item.text)
+			.join(', ');
 		
 		const shareData = {
-			title: 'Shopping List',
 			text: listText
 		};
 
@@ -378,15 +439,15 @@
 			{/if}
 		</div>
 
-		<!-- Done message (shown for 3 seconds after archiving) -->
+		<!-- Done message (shown for 3 seconds after all items done) -->
 		{#if showDoneMessage}
-			<div class="mb-4 text-gray-600 text-base">
+			<div class="mb-4 text-gray-600 text-base" transition:fade={{ duration: 300 }}>
 				Done. Next time you'll probably write a new one.
 			</div>
 		{/if}
 
 		<!-- Input Textarea with hidden form for iOS support -->
-		<form onsubmit={handleFormSubmit} class="mb-6">
+		<form onsubmit={handleFormSubmit} class="mb-6 sticky top-0 bg-white z-10 {isScrolled ? 'py-2 shadow-sm' : 'py-0'}">
 			<textarea
 				bind:this={textareaElement}
 				bind:value={inputText}
@@ -394,10 +455,12 @@
 				onkeydown={handleKeydown}
 				onpaste={handlePaste}
 				placeholder="Add items to your list..."
-				class="w-full resize-none overflow-hidden rounded border border-gray-700 bg-white px-4 py-3 text-lg transition-all focus:outline-none focus:shadow-sm"
+				class="w-full resize-none rounded border border-gray-700 bg-white px-4 py-3 transition-all focus:outline-none focus:shadow-sm {isScrolled ? 'overflow-y-auto' : 'overflow-hidden'}"
 				rows="1"
-				style="min-height: 60px;"
-				enterkeyhint="done"
+				style="min-height: 60px; font-size: 24px; line-height: 1.4;"
+				autocorrect="off"
+				autocapitalize="off"
+				spellcheck="false"
 			></textarea>
 			<!-- Hidden submit button for iOS keyboard "Done" button -->
 			<button type="submit" class="hidden" tabindex="-1" aria-hidden="true">Submit</button>
@@ -407,7 +470,7 @@
 		<div>
 			{#if items.length === 0}
 			{#if showArchiveHint}
-				<div class="py-2 text-gray-600">
+				<div class="py-2 text-gray-600" transition:fade={{ duration: 300 }}>
 					<button
 						onclick={restoreArchivedList}
 						class="underline hover:text-gray-900 transition-colors"
@@ -417,13 +480,14 @@
 					<span> Type to start a new one.</span>
 				</div>
 			{:else}
-				<div class="py-8 text-center text-gray-400">
+				<div class="py-8 text-center text-gray-400" transition:fade={{ duration: 300 }}>
 					<p>Your list is empty. Start adding items!</p>
 				</div>
 			{/if}
 			{:else}
 				{#each items as item (item.id)}
 					<div
+						transition:fade={{ duration: 300 }}
 						class="py-2 px-1 cursor-pointer relative"
 						role="button"
 						tabindex="0"
@@ -456,9 +520,10 @@
 						{/if}
 						
 						<span
-							class="block text-lg relative {item.done
+							class="block relative {item.done
 								? 'text-gray-400 line-through'
 								: 'text-gray-800'}"
+							style="font-size: 21px; line-height: 1.4;"
 						>
 							{item.text}
 						</span>
