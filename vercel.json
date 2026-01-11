@@ -1,0 +1,5 @@
+{
+	"buildCommand": "yarn build",
+	"outputDirectory": ".svelte-kit/vercel/output",
+	"framework": "sveltekit"
+}
