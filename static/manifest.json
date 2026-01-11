@@ -1,0 +1,33 @@
+{
+	"name": "Shopping List Today",
+	"short_name": "Shopping List",
+	"description": "A simple and powerful shopping list app",
+	"start_url": "/",
+	"display": "standalone",
+	"background_color": "#ffffff",
+	"theme_color": "#6366f1",
+	"orientation": "portrait",
+	"icons": [
+		{
+			"src": "/icon.svg",
+			"sizes": "any",
+			"type": "image/svg+xml",
+			"purpose": "any maskable"
+		}
+	],
+	"categories": ["productivity", "shopping"],
+	"shortcuts": [
+		{
+			"name": "Open Shopping List",
+			"short_name": "List",
+			"description": "Open your shopping list",
+			"url": "/",
+			"icons": [
+				{
+					"src": "/icon.svg",
+					"sizes": "any"
+				}
+			]
+		}
+	]
+}
