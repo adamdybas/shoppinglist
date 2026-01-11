@@ -16,6 +16,7 @@
 	let touchStartX = 0;
 	let touchStartY = 0;
 	let currentSwipeId: string | null = null;
+	let swipeProgress = $state<Record<string, number>>({}); // Track swipe progress for each item
 	let addedItemsSet = $state(new Set<string>()); // Track which items have been added
 	let previousParsedItems: string[] = []; // Track what was previously in the input
 	let showArchiveHint = $state(false);
@@ -25,7 +26,7 @@
 		// Load items from IndexedDB
 		items = await getAllItems();
 		// Populate the set with existing items
-		items.forEach((item) => addedItemsSet.add(item.text.toLowerCase()));
+		items.forEach((item: ShoppingItem) => addedItemsSet.add(item.text.toLowerCase()));
 		
 		// Check if there's an archived list
 		const archived = await getArchivedList();
@@ -40,7 +41,7 @@
 		// Only check if there are items
 		if (items.length === 0) return;
 		
-		const allDone = items.every((item) => item.done);
+		const allDone = items.every((item: ShoppingItem) => item.done);
 		console.log('✅ All done?', allDone);
 		if (allDone) {
 			console.log('🗂️ Archiving...');
@@ -174,12 +175,18 @@
 		}
 	}
 
+	function handleFormSubmit(e: SubmitEvent) {
+		console.log('📝 FORM SUBMIT!');
+		e.preventDefault();
+		addItemsFromInput();
+	}
+
 	async function handleInput() {
 		console.log('🎯 handleInput CALLED');
 		console.log('📝 Current inputText:', JSON.stringify(inputText));
 		console.log('🔍 Has comma?', inputText.includes(','));
 		console.log('🔍 Has newline?', inputText.includes('\n'));
-		console.log('🔍 Char codes:', Array.from(inputText).map(c => c.charCodeAt(0)));
+		console.log('🔍 Char codes:', Array.from<string>(inputText).map((c) => c.charCodeAt(0)));
 		
 		autoGrow();
 		
@@ -233,7 +240,7 @@
 
 	async function handleCheckboxChange(id: string) {
 		await toggleItemDone(id);
-		items = items.map((item) => (item.id === id ? { ...item, done: !item.done } : item));
+		items = items.map((item: ShoppingItem) => (item.id === id ? { ...item, done: !item.done } : item));
 		
 		// Check if all items are now done
 		checkIfAllDone();
@@ -246,6 +253,14 @@
 		currentSwipeId = itemId;
 	}
 
+	function createTouchStartHandler(itemId: string) {
+		return (e: TouchEvent) => handleTouchStart(e, itemId);
+	}
+
+	function createTouchMoveHandler(itemId: string) {
+		return (e: TouchEvent) => handleTouchMove(e, itemId);
+	}
+
 	async function handleTouchMove(event: TouchEvent, itemId: string) {
 		if (currentSwipeId !== itemId) return;
 
@@ -256,6 +271,7 @@
 		// Check if it's a horizontal swipe (not vertical)
 		if (Math.abs(deltaY) > Math.abs(deltaX)) {
 			currentSwipeId = null;
+			swipeProgress = { ...swipeProgress, [itemId]: 0 };
 			return;
 		}
 
@@ -263,24 +279,33 @@
 		const element = event.currentTarget as HTMLElement;
 		const elementWidth = element.offsetWidth;
 
-		// Check if swiped 40-60% of the width from left to right
-		const swipePercentage = (deltaX / elementWidth) * 100;
+		// Calculate swipe percentage (only positive/right swipes)
+		const swipePercentage = Math.max(0, (deltaX / elementWidth) * 100);
+		
+		// Update visual progress (cap at 100%)
+		swipeProgress = { ...swipeProgress, [itemId]: Math.min(swipePercentage, 100) };
 
+		// Check if swiped 40-60% of the width from left to right
 		if (swipePercentage >= 40 && swipePercentage <= 60) {
 			// Mark as done
-			const item = items.find((i) => i.id === itemId);
+			const item = items.find((i: ShoppingItem) => i.id === itemId);
 			if (item && !item.done) {
 				await toggleItemDone(itemId);
-				items = items.map((i) => (i.id === itemId ? { ...i, done: true } : i));
+				items = items.map((i: ShoppingItem) => (i.id === itemId ? { ...i, done: true } : i));
 				
 				// Check if all items are now done
 				checkIfAllDone();
 			}
 			currentSwipeId = null;
+			swipeProgress = { ...swipeProgress, [itemId]: 0 };
 		}
 	}
 
 	function handleTouchEnd() {
+		if (currentSwipeId) {
+			// Reset swipe progress for this item
+			swipeProgress = { ...swipeProgress, [currentSwipeId]: 0 };
+		}
 		currentSwipeId = null;
 	}
 </script>
@@ -290,18 +315,15 @@
 	<meta name="description" content="A simple and powerful shopping list app" />
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+<div class="min-h-screen bg-white p-4">
 	<div class="mx-auto max-w-2xl">
 		<!-- Header -->
-		<div class="mb-6 text-center">
+		<div class="mb-6">
 			<h1 class="text-3xl font-bold text-gray-800">Shopping List</h1>
-			<p class="text-sm text-gray-600">
-				Paste your list or type items (comma/newline separated), then press Enter to add.
-			</p>
 		</div>
 
 		<!-- Input Textarea with hidden form for iOS support -->
-		<form onsubmit={(e) => { console.log('📝 FORM SUBMIT!'); e.preventDefault(); addItemsFromInput(); }} class="mb-6">
+		<form onsubmit={handleFormSubmit} class="mb-6">
 			<textarea
 				bind:this={textareaElement}
 				bind:value={inputText}
@@ -309,7 +331,7 @@
 				onkeydown={handleKeydown}
 				onpaste={handlePaste}
 				placeholder="Add items to your list..."
-				class="w-full resize-none overflow-hidden rounded-lg border-2 border-indigo-300 bg-white px-4 py-3 text-lg shadow-sm transition-all focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+				class="w-full resize-none overflow-hidden rounded border border-gray-700 bg-white px-4 py-3 text-lg transition-all focus:outline-none focus:shadow-sm"
 				rows="1"
 				style="min-height: 60px;"
 				enterkeyhint="done"
@@ -319,42 +341,50 @@
 		</form>
 
 		<!-- Shopping List -->
-		<div class="space-y-2">
+		<div>
 			{#if items.length === 0}
-				{#if showArchiveHint}
+			{#if showArchiveHint}
+				<div class="py-2 text-gray-600">
 					<button
 						onclick={restoreArchivedList}
-						class="w-full rounded-lg border-2 border-dashed border-indigo-300 bg-indigo-50 p-8 text-center transition-all hover:border-indigo-400 hover:bg-indigo-100"
+						class="underline hover:text-gray-900 transition-colors"
 					>
-						<div class="text-indigo-600">
-							<p class="mb-2 text-lg font-medium">🗂️ Previous list completed!</p>
-							<p class="text-sm">
-								Click to restore previous list and add items to it,<br />or type to create a new
-								one
-							</p>
-						</div>
+						<span class="inline-block mr-1">↻</span>Restore previous list
 					</button>
-				{:else}
-					<div class="rounded-lg bg-white p-8 text-center text-gray-400 shadow-sm">
-						<p>Your list is empty. Start adding items!</p>
-					</div>
-				{/if}
+					<span> or type to start new one</span>
+				</div>
+			{:else}
+				<div class="py-8 text-center text-gray-400">
+					<p>Your list is empty. Start adding items!</p>
+				</div>
+			{/if}
 			{:else}
 				{#each items as item (item.id)}
 					<div
-						class="group flex items-center gap-3 rounded-lg bg-white p-4 shadow-sm transition-all hover:shadow-md"
-						ontouchstart={(e) => handleTouchStart(e, item.id)}
-						ontouchmove={(e) => handleTouchMove(e, item.id)}
+						class="py-2 px-1 cursor-pointer relative overflow-hidden"
+						ontouchstart={createTouchStartHandler(item.id)}
+						ontouchmove={createTouchMoveHandler(item.id)}
 						ontouchend={handleTouchEnd}
+						onclick={() => handleCheckboxChange(item.id)}
 					>
+						<!-- Swipe progress "ink" effect -->
+						{#if swipeProgress[item.id] > 0}
+							<div
+								class="absolute inset-0 bg-gray-200 pointer-events-none transition-all duration-100"
+								style="width: {swipeProgress[item.id]}%; opacity: {Math.min(swipeProgress[item.id] / 50, 0.5)}"
+							></div>
+						{/if}
+						
+						<!-- Hidden checkbox for accessibility/state management -->
 						<input
 							type="checkbox"
 							checked={item.done}
-							onchange={() => handleCheckboxChange(item.id)}
-							class="h-5 w-5 cursor-pointer rounded border-gray-300 text-indigo-600 transition-all focus:ring-2 focus:ring-indigo-500 focus:ring-offset-0"
+							class="sr-only"
+							tabindex="-1"
+							aria-hidden="true"
 						/>
 						<span
-							class="flex-1 text-lg transition-all {item.done
+							class="block text-lg transition-all relative z-10 {item.done
 								? 'text-gray-400 line-through'
 								: 'text-gray-800'}"
 						>
