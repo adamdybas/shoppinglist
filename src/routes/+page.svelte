@@ -25,6 +25,7 @@
 	let showDoneMessage = $state(false);
 	let allItemsDone = $state(false); // Track if all items are done (but not archived yet)
 	let isScrolled = $state(false);
+	let previousSeparatorCount = 0; // Track number of separators to detect new additions
 
 	onMount(() => {
 		// Load items from IndexedDB
@@ -235,9 +236,6 @@
 	async function handleInput() {
 		console.log('🎯 handleInput CALLED');
 		console.log('📝 Current inputText:', JSON.stringify(inputText));
-		console.log('🔍 Has comma?', inputText.includes(','));
-		console.log('🔍 Has newline?', inputText.includes('\n'));
-		console.log('🔍 Char codes:', Array.from<string>(inputText).map((c) => c.charCodeAt(0)));
 		
 		autoGrow();
 		
@@ -262,13 +260,18 @@
 			showArchiveHint = true;
 		}
 		
-		// Check if there's a comma or newline - automatically add new items
-		// This handles typing commas/newlines AND pasting text
-		if (inputText.includes(',') || inputText.includes('\n')) {
-			console.log('🔹 Comma or newline detected, checking for new items...');
+		// Count separators (commas and newlines)
+		const currentSeparatorCount = (inputText.match(/[,\n]/g) || []).length;
+		console.log('🔢 Separator count - previous:', previousSeparatorCount, 'current:', currentSeparatorCount);
+		
+		// Only add items if separator count INCREASED (new comma/enter added)
+		if (currentSeparatorCount > previousSeparatorCount) {
+			console.log('🔹 New separator detected, checking for new items...');
 			await checkAndAddNewItems();
+			previousSeparatorCount = currentSeparatorCount;
 		} else {
-			console.log('❌ No comma or newline found, skipping checkAndAddNewItems');
+			console.log('❌ No new separator, just editing - skipping checkAndAddNewItems');
+			previousSeparatorCount = currentSeparatorCount;
 		}
 		
 		// Hide hint when actually adding items (not just typing)
@@ -294,6 +297,9 @@
 				console.log('📋 Paste: adding comma to process last item');
 				inputText = inputText + ',';
 			}
+			
+			// Update separator count before adding
+			previousSeparatorCount = (inputText.match(/[,\n]/g) || []).length;
 			
 			await checkAndAddNewItems();
 			
