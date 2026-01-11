@@ -407,17 +407,18 @@
 <svelte:head>
 	<title>Shopping List</title>
 	<meta name="description" content="A simple and powerful shopping list app" />
+	<meta name="color-scheme" content="light dark" />
 </svelte:head>
 
-<div class="min-h-screen bg-white p-4">
+<div class="min-h-screen bg-white dark:bg-[#0f0f0f] p-4">
 	<div class="mx-auto max-w-2xl">
 		<!-- Header -->
 		<div class="mb-6 flex items-center justify-between">
-			<h1 class="text-3xl font-semibold text-gray-800">Shopping List</h1>
+			<h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">Shopping List</h1>
 			{#if items.length > 0}
 				<button
 					onclick={shareList}
-					class="text-gray-600 hover:text-gray-900 transition-colors p-2"
+					class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors p-2"
 					aria-label="Share list"
 				>
 					<svg
@@ -441,13 +442,13 @@
 
 		<!-- Done message (shown for 3 seconds after all items done) -->
 		{#if showDoneMessage}
-			<div class="mb-4 text-gray-600 text-base" transition:fade={{ duration: 300 }}>
+			<div class="mb-4 text-gray-600 dark:text-gray-400 text-base" transition:fade={{ duration: 300 }}>
 				Done. Next time you'll probably write a new one.
 			</div>
 		{/if}
 
 		<!-- Input Textarea with hidden form for iOS support -->
-		<form onsubmit={handleFormSubmit} class="mb-6 sticky top-0 bg-white z-10 {isScrolled ? 'py-2 shadow-sm' : 'py-0'}">
+		<form onsubmit={handleFormSubmit} class="mb-6 sticky top-0 bg-white dark:bg-[#0f0f0f] z-10 {isScrolled ? 'py-2 shadow-sm dark:shadow-gray-800' : 'py-0'}">
 			<textarea
 				bind:this={textareaElement}
 				bind:value={inputText}
@@ -455,7 +456,7 @@
 				onkeydown={handleKeydown}
 				onpaste={handlePaste}
 				placeholder="Add items to your list..."
-				class="w-full resize-none rounded border border-gray-700 bg-white px-4 py-3 transition-all focus:outline-none focus:shadow-sm {isScrolled ? 'overflow-y-auto' : 'overflow-hidden'}"
+				class="w-full resize-none rounded border border-gray-700 dark:border-gray-500 bg-white dark:bg-[#1a1a1a] dark:text-gray-100 px-4 py-3 transition-all focus:outline-none focus:shadow-sm dark:placeholder-gray-500 {isScrolled ? 'overflow-y-auto' : 'overflow-hidden'}"
 				rows="1"
 				style="min-height: 60px; font-size: 24px; line-height: 1.4;"
 				autocorrect="off"
@@ -470,17 +471,17 @@
 		<div>
 			{#if items.length === 0}
 			{#if showArchiveHint}
-				<div class="py-2 text-gray-600" transition:fade={{ duration: 300 }}>
+				<div class="py-2 text-gray-600 dark:text-gray-400" transition:fade={{ duration: 300 }}>
 					<button
 						onclick={restoreArchivedList}
-						class="underline hover:text-gray-900 transition-colors"
+						class="underline hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
 					>
 						Old list is still here.
 					</button>
 					<span> Type to start a new one.</span>
 				</div>
 			{:else}
-				<div class="py-8 text-center text-gray-400" transition:fade={{ duration: 300 }}>
+				<div class="py-8 text-center text-gray-400 dark:text-gray-600" transition:fade={{ duration: 300 }}>
 					<p>Your list is empty. Start adding items!</p>
 				</div>
 			{/if}
@@ -514,15 +515,15 @@
 						<!-- Swipe "ink" line that grows with finger -->
 						{#if swipeProgress[item.id] > 0 && !item.done}
 							<div
-								class="absolute left-1 top-1/2 h-[2px] bg-gray-700 pointer-events-none"
+								class="absolute left-1 top-1/2 h-[2px] bg-gray-700 dark:bg-gray-300 pointer-events-none"
 								style="width: {swipeProgress[item.id]}%; transform: translateY(-50%); transition: width 0.05s linear;"
 							></div>
 						{/if}
 						
 						<span
 							class="block relative {item.done
-								? 'text-gray-400 line-through'
-								: 'text-gray-800'}"
+								? 'text-gray-400 dark:text-gray-500 line-through'
+								: 'text-gray-800 dark:text-gray-200'}"
 							style="font-size: 21px; line-height: 1.4;"
 						>
 							{item.text}
@@ -552,5 +553,26 @@
 
 	textarea::-webkit-scrollbar-thumb:hover {
 		background: #a5b4fc;
+	}
+
+	/* Dark mode - follows system preferences */
+	@media (prefers-color-scheme: dark) {
+		/* Main background */
+		:global(body) {
+			background-color: #0f0f0f;
+		}
+
+		/* Scrollbar dark mode */
+		textarea::-webkit-scrollbar-track {
+			background: #2a2a2a;
+		}
+
+		textarea::-webkit-scrollbar-thumb {
+			background: #4a4a4a;
+		}
+
+		textarea::-webkit-scrollbar-thumb:hover {
+			background: #5a5a5a;
+		}
 	}
 </style>
