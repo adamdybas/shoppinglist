@@ -26,6 +26,7 @@
 	let allItemsDone = $state(false); // Track if all items are done (but not archived yet)
 	let isScrolled = $state(false);
 	let previousSeparatorCount = 0; // Track number of separators to detect new additions
+	let isLoading = $state(true); // Track if we're still loading from IndexedDB
 
 	onMount(() => {
 		// Load items from IndexedDB
@@ -40,6 +41,9 @@
 			
 			// Show hint if list is empty and there's an archived list
 			showArchiveHint = items.length === 0 && hasArchivedList;
+			
+			// Done loading!
+			isLoading = false;
 		})();
 		
 		// Listen for scroll events
@@ -80,10 +84,7 @@
 			// Clear the input
 			inputText = '';
 			
-			// Hide message after 3 seconds
-			setTimeout(() => {
-				showDoneMessage = false;
-			}, 3000);
+			// Message stays visible until user starts typing (handled in handleInput)
 		} else if (!allDone && allItemsDone) {
 			// User unchecked something - reset the flag
 			console.log('↩️ User unchecked item - resetting done state');
@@ -211,12 +212,40 @@
 			items = [newItem, ...items]; // Add to beginning (newest on top)
 			console.log('✅ Added:', newItem);
 		}
+		
+		// Clear input after adding items
+		if (newItemsToAdd.length > 0) {
+			console.log('🧹 Clearing input after adding items');
+			inputText = '';
+			previousSeparatorCount = 0; // Reset separator count
+		}
 	}
 
-	function handleKeydown(event: KeyboardEvent) {
+	async function handleKeydown(event: KeyboardEvent) {
 		console.log('⌨️ Key pressed:', event.key);
-		// Enter just creates a new line - handleInput will detect it and add items
-		// No special handling needed!
+		
+		// Prevent Enter from creating new line - add item directly
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			
+			// If there's text, add it directly
+			if (inputText.trim()) {
+				console.log('✅ Enter pressed - adding item directly');
+				const itemToAdd = inputText.trim();
+				
+				// Add the item
+				const lowerText = itemToAdd.toLowerCase();
+				if (!addedItemsSet.has(lowerText)) {
+					const newItem = await addItem(itemToAdd);
+					items = [newItem, ...items];
+					addedItemsSet.add(lowerText);
+				}
+				
+				// Clear input
+				inputText = '';
+				previousSeparatorCount = 0;
+			}
+		}
 	}
 
 	async function addItemsFromInput() {
@@ -239,15 +268,19 @@
 		
 		autoGrow();
 		
-		// If user starts typing when all items are done -> archive and start fresh
+		// If user starts typing when all items are done -> hide done message, archive and show hint
 		if (inputText.length > 0 && allItemsDone && items.length > 0) {
 			console.log('🆕 User starting new list after completing old one - archiving now');
+			// Save what user is typing
+			const typedText = inputText;
+			// Hide done message
+			showDoneMessage = false;
 			await archiveAndClear();
-			// Clear input
-			inputText = '';
+			// Restore what user typed (don't lose their first letter!)
+			inputText = typedText;
 			// Show hint
 			showArchiveHint = true;
-			return;
+			// Don't return - let the rest of handleInput process the text
 		}
 		
 		// If user starts typing after archiving, clear the old list from UI and show hint
@@ -416,15 +449,15 @@
 	<meta name="color-scheme" content="light dark" />
 </svelte:head>
 
-<div class="min-h-screen bg-white dark:bg-[#0f0f0f] p-4">
+<div class="min-h-screen bg-white dark:bg-[#0F0F0F] p-4">
 	<div class="mx-auto max-w-2xl">
 		<!-- Header -->
 		<div class="mb-6 flex items-center justify-between">
-			<h1 class="text-3xl font-semibold text-gray-800 dark:text-gray-100">Shopping List</h1>
+			<h1 class="text-3xl font-semibold text-[#1A1A1A] dark:text-[#EDEDED]">Shopping List</h1>
 			{#if items.length > 0}
 				<button
 					onclick={shareList}
-					class="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors p-2"
+					class="text-[#6B6B6B] dark:text-[#9A9A9A] hover:text-[#1A1A1A] dark:hover:text-[#EDEDED] transition-colors p-2"
 					aria-label="Share list"
 				>
 					<svg
@@ -446,15 +479,8 @@
 			{/if}
 		</div>
 
-		<!-- Done message (shown for 3 seconds after all items done) -->
-		{#if showDoneMessage}
-			<div class="mb-4 text-gray-600 dark:text-gray-400 text-base" transition:fade={{ duration: 300 }}>
-				Done. Next time you'll probably write a new one.
-			</div>
-		{/if}
-
 		<!-- Input Textarea with hidden form for iOS support -->
-		<form onsubmit={handleFormSubmit} class="mb-6 sticky top-0 bg-white dark:bg-[#0f0f0f] z-10 {isScrolled ? 'py-2 shadow-sm dark:shadow-gray-800' : 'py-0'}">
+		<form onsubmit={handleFormSubmit} class="mb-6 sticky top-0 bg-white dark:bg-[#0F0F0F] z-10 {isScrolled ? 'py-2 shadow-sm dark:shadow-gray-800' : 'py-0'}">
 			<textarea
 				bind:this={textareaElement}
 				bind:value={inputText}
@@ -462,7 +488,7 @@
 				onkeydown={handleKeydown}
 				onpaste={handlePaste}
 				placeholder="Add items to your list..."
-				class="w-full resize-none rounded border border-gray-700 dark:border-gray-500 bg-white dark:bg-[#1a1a1a] dark:text-gray-100 px-4 py-3 transition-all focus:outline-none focus:shadow-sm dark:placeholder-gray-500 {isScrolled ? 'overflow-y-auto' : 'overflow-hidden'}"
+				class="w-full resize-none rounded border border-[#6B6B6B] dark:border-[#9A9A9A] bg-white dark:bg-[#1a1a1a] text-[#1A1A1A] dark:text-[#EDEDED] px-4 py-3 transition-all focus:outline-none focus:shadow-sm placeholder-[#6B6B6B] dark:placeholder-[#9A9A9A] {isScrolled ? 'overflow-y-auto' : 'overflow-hidden'}"
 				rows="1"
 				style="min-height: 60px; font-size: 24px; line-height: 1.4;"
 				autocorrect="off"
@@ -473,28 +499,41 @@
 			<button type="submit" class="hidden" tabindex="-1" aria-hidden="true">Submit</button>
 		</form>
 
+		<!-- Done message (shown after all items done - yellow highlighter) -->
+		{#if showDoneMessage}
+			<div class="mb-4" transition:fade={{ duration: 500 }}>
+				<span 
+					class="inline-block px-2 py-1 rounded text-base bg-[#FFF4C2] text-[#5A4A00] dark:bg-[#3A3420] dark:text-[#F3E6A1]"
+				>
+					Done. Next time you'll probably write a new one.
+				</span>
+			</div>
+		{/if}
+
 		<!-- Shopping List -->
 		<div>
-			{#if items.length === 0}
+			{#if items.length === 0 && !isLoading}
 			{#if showArchiveHint}
-				<div class="py-2 text-gray-600 dark:text-gray-400" transition:fade={{ duration: 300 }}>
-					<button
-						onclick={restoreArchivedList}
-						class="underline hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-					>
-						Old list is still here.
-					</button>
-					<span> Type to start a new one.</span>
+				<div class="mb-4" transition:fade={{ duration: 500 }}>
+					<span class="inline-block px-2 py-1 rounded bg-[#E8F0FF] dark:bg-[#1E2A3D]">
+						<button
+							onclick={restoreArchivedList}
+							class="underline text-[#243A5E] dark:text-[#C7D7FF] hover:opacity-80 transition-opacity"
+						>
+							Old list is still here.
+						</button>
+						<span class="text-[#243A5E] dark:text-[#C7D7FF]"> Type to start a new one.</span>
+					</span>
 				</div>
-			{:else}
-				<div class="py-8 text-center text-gray-400 dark:text-gray-600" transition:fade={{ duration: 300 }}>
+			{:else if !hasArchivedList}
+				<div class="py-8 text-center text-[#6B6B6B] dark:text-[#9A9A9A]" transition:fade={{ duration: 500 }}>
 					<p>Your list is empty. Start adding items!</p>
 				</div>
 			{/if}
 			{:else}
 				{#each items as item (item.id)}
 					<div
-						transition:fade={{ duration: 300 }}
+						transition:fade={{ duration: 600 }}
 						class="py-2 px-1 cursor-pointer relative"
 						role="button"
 						tabindex="0"
@@ -521,15 +560,15 @@
 						<!-- Swipe "ink" line that grows with finger -->
 						{#if swipeProgress[item.id] > 0 && !item.done}
 							<div
-								class="absolute left-1 top-1/2 h-[2px] bg-gray-700 dark:bg-gray-300 pointer-events-none"
+								class="absolute left-1 top-1/2 h-[2px] bg-[#1A1A1A] dark:bg-[#EDEDED] pointer-events-none"
 								style="width: {swipeProgress[item.id]}%; transform: translateY(-50%); transition: width 0.05s linear;"
 							></div>
 						{/if}
 						
 						<span
 							class="block relative {item.done
-								? 'text-gray-400 dark:text-gray-500 line-through'
-								: 'text-gray-800 dark:text-gray-200'}"
+								? 'text-[#6B6B6B] dark:text-[#9A9A9A] line-through'
+								: 'text-[#1A1A1A] dark:text-[#EDEDED]'}"
 							style="font-size: 21px; line-height: 1.4;"
 						>
 							{item.text}
@@ -553,19 +592,19 @@
 	}
 
 	textarea::-webkit-scrollbar-thumb {
-		background: #c7d2fe;
+		background: #6B6B6B;
 		border-radius: 4px;
 	}
 
 	textarea::-webkit-scrollbar-thumb:hover {
-		background: #a5b4fc;
+		background: #1A1A1A;
 	}
 
 	/* Dark mode - follows system preferences */
 	@media (prefers-color-scheme: dark) {
 		/* Main background */
 		:global(body) {
-			background-color: #0f0f0f;
+			background-color: #0F0F0F;
 		}
 
 		/* Scrollbar dark mode */
@@ -574,11 +613,11 @@
 		}
 
 		textarea::-webkit-scrollbar-thumb {
-			background: #4a4a4a;
+			background: #9A9A9A;
 		}
 
 		textarea::-webkit-scrollbar-thumb:hover {
-			background: #5a5a5a;
+			background: #EDEDED;
 		}
 	}
 </style>
