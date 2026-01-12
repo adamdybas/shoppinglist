@@ -405,11 +405,11 @@
 	<div class="mx-auto max-w-2xl">
 		<!-- Header -->
 		<div class="mb-6 flex items-center justify-between">
-			<h1 class="text-3xl font-semibold text-[#1A1A1A] dark:text-[#EDEDED]">Shopping List</h1>
+			<h1 class="text-3xl font-semibold text-[#2A2A2A] dark:text-[#D4D4D4]">Shopping List</h1>
 			{#if items.length > 0}
 				<button
 					onclick={shareList}
-					class="text-[#6B6B6B] dark:text-[#9A9A9A] hover:text-[#1A1A1A] dark:hover:text-[#EDEDED] transition-colors p-2"
+					class="text-[#6B6B6B] dark:text-[#9A9A9A] hover:text-[#2A2A2A] dark:hover:text-[#D4D4D4] transition-colors p-2"
 					aria-label="Share list"
 				>
 					<svg
@@ -440,7 +440,7 @@
 				onkeydown={handleKeydown}
 				onpaste={handlePaste}
 				placeholder="Add items to your list..."
-				class="w-full resize-none rounded border border-[#6B6B6B] dark:border-[#9A9A9A] bg-white dark:bg-[#1a1a1a] text-[#1A1A1A] dark:text-[#EDEDED] px-4 py-3 transition-all focus:outline-none focus:shadow-sm placeholder-[#6B6B6B] dark:placeholder-[#9A9A9A] {isScrolled ? 'overflow-y-auto' : 'overflow-hidden'}"
+				class="w-full resize-none rounded border border-[#6B6B6B] dark:border-[#9A9A9A] bg-white dark:bg-[#1a1a1a] text-[#2A2A2A] dark:text-[#D4D4D4] px-4 py-3 transition-all focus:outline-none focus:shadow-sm placeholder-[#6B6B6B] dark:placeholder-[#9A9A9A] {isScrolled ? 'overflow-y-auto' : 'overflow-hidden'}"
 				rows="1"
 				style="min-height: 60px; font-size: 24px; line-height: 1.4;"
 				autocorrect="off"
@@ -457,7 +457,7 @@
 				<span 
 					class="inline-block px-2 py-1 rounded text-base bg-[#FFF4C2] text-[#5A4A00] dark:bg-[#3A3420] dark:text-[#F3E6A1]"
 				>
-					Done. Next time you'll probably write a new one.
+					— done —
 				</span>
 			</div>
 		{/if}
@@ -510,7 +510,7 @@
 						<!-- Swipe "ink" line that grows with finger -->
 						{#if swipeProgress[item.id] > 0 && !item.done}
 							<div
-								class="absolute left-1 top-1/2 h-[2px] bg-[#1A1A1A] dark:bg-[#EDEDED] pointer-events-none"
+								class="absolute left-1 top-1/2 h-[2px] bg-[#2A2A2A] dark:bg-[#D4D4D4] pointer-events-none"
 								style="width: {swipeProgress[item.id]}%; transform: translateY(-50%); transition: width 0.05s linear;"
 							></div>
 						{/if}
@@ -518,7 +518,7 @@
 						<span
 							class="block relative {item.done
 								? 'text-[#6B6B6B] dark:text-[#9A9A9A] line-through'
-								: 'text-[#1A1A1A] dark:text-[#EDEDED]'}"
+								: 'text-[#2A2A2A] dark:text-[#D4D4D4]'}"
 							style="font-size: 21px; line-height: 1.4;"
 						>
 							{item.text}
@@ -542,12 +542,12 @@
 	}
 
 	textarea::-webkit-scrollbar-thumb {
-		background: #6B6B6B;
+		background: #9A9A9A;
 		border-radius: 4px;
 	}
 
 	textarea::-webkit-scrollbar-thumb:hover {
-		background: #1A1A1A;
+		background: #6B6B6B;
 	}
 
 	/* Dark mode - follows system preferences */
@@ -563,11 +563,11 @@
 		}
 
 		textarea::-webkit-scrollbar-thumb {
-			background: #9A9A9A;
+			background: #6B6B6B;
 		}
 
 		textarea::-webkit-scrollbar-thumb:hover {
-			background: #EDEDED;
+			background: #9A9A9A;
 		}
 	}
 </style>
