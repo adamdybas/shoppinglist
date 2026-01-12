@@ -10,40 +10,44 @@
 		clearAllItems,
 		type ShoppingItem
 	} from '$lib/db';
+	import { transition, checkAllDone, type AppState, type AppEvent } from '$lib/stateMachine';
+
+	// State machine!
+	let appState = $state<AppState>({ type: 'LOADING' });
+	
+	// Helper to dispatch events
+	function dispatch(event: AppEvent) {
+		console.log('📨 Dispatching:', event.type);
+		appState = transition(appState, event);
+		console.log('📍 New state:', appState.type);
+	}
+	
+	// Derived values
+	let items = $derived(appState.type === 'ACTIVE' || appState.type === 'ALL_DONE' ? appState.items : []);
 
 	let inputText = $state('');
-	let items = $state<ShoppingItem[]>([]);
 	let textareaElement: HTMLTextAreaElement;
 	let touchStartX = 0;
 	let touchStartY = 0;
 	let currentSwipeId: string | null = null;
 	let swipeProgress = $state<Record<string, number>>({}); // Track swipe progress for each item
 	let addedItemsSet = $state(new Set<string>()); // Track which items have been added
-	let previousParsedItems: string[] = []; // Track what was previously in the input
-	let showArchiveHint = $state(false);
-	let hasArchivedList = $state(false);
-	let showDoneMessage = $state(false);
-	let allItemsDone = $state(false); // Track if all items are done (but not archived yet)
 	let isScrolled = $state(false);
 	let previousSeparatorCount = 0; // Track number of separators to detect new additions
-	let isLoading = $state(true); // Track if we're still loading from IndexedDB
 
 	onMount(() => {
 		// Load items from IndexedDB
 		(async () => {
-			items = await getAllItems();
+			const loadedItems = await getAllItems();
 			// Populate the set with existing items
-			items.forEach((item: ShoppingItem) => addedItemsSet.add(item.text.toLowerCase()));
+			loadedItems.forEach((item: ShoppingItem) => addedItemsSet.add(item.text.toLowerCase()));
 			
 			// Check if there's an archived list
 			const archived = await getArchivedList();
-			hasArchivedList = archived !== null;
+			const hasArchive = archived !== null;
 			
-			// Show hint if list is empty and there's an archived list
-			showArchiveHint = items.length === 0 && hasArchivedList;
-			
-			// Done loading!
-			isLoading = false;
+			// Dispatch LOADED event to state machine
+			dispatch({ type: 'LOADED', items: loadedItems, hasArchive });
 		})();
 		
 		// Listen for scroll events
@@ -63,41 +67,22 @@
 		};
 	});
 
-	function checkIfAllDone() {
-		console.log('🔍 checkIfAllDone called, items:', items.length);
-		// Only check if there are items
-		if (items.length === 0) {
-			allItemsDone = false;
-			showDoneMessage = false;
-			return;
-		}
-		
-		const allDone = items.every((item: ShoppingItem) => item.done);
-		console.log('✅ All done?', allDone);
-		
-		if (allDone && !allItemsDone) {
-			// First time all items are done - show message and clear input
-			console.log('✅ All items done - showing message and clearing input');
-			allItemsDone = true;
-			showDoneMessage = true;
-			
-			// Clear the input
-			inputText = '';
-			
-			// Message stays visible until user starts typing (handled in handleInput)
-		} else if (!allDone && allItemsDone) {
-			// User unchecked something - reset the flag
-			console.log('↩️ User unchecked item - resetting done state');
-			allItemsDone = false;
-			showDoneMessage = false;
+	function checkAndDispatchAllDone() {
+		console.log('🔍 checkAndDispatchAllDone called');
+		if (appState.type === 'ACTIVE' && checkAllDone(appState.items)) {
+			console.log('✅ All items done - dispatching ALL_CHECKED');
+			inputText = ''; // Clear input
+			dispatch({ type: 'ALL_CHECKED' });
 		}
 	}
 
 	async function archiveAndClear() {
 		console.log('📦 archiveAndClear START');
 		
+		if (appState.type !== 'ALL_DONE') return;
+		
 		// Create plain object copy (remove Svelte proxy)
-		const plainItems = JSON.parse(JSON.stringify(items));
+		const plainItems = JSON.parse(JSON.stringify(appState.items));
 		
 		// Archive current list
 		await archiveCurrentList(plainItems);
@@ -105,21 +90,18 @@
 		// Clear ALL items from IndexedDB immediately
 		await clearAllItems();
 		
-		// Mark that we have archived list
-		hasArchivedList = true;
-		
-		// Clear state - items will fade out via transition
-		items = [];
+		// Clear tracking
 		addedItemsSet.clear();
-		allItemsDone = false;
 		
-		console.log('📦 archiveAndClear DONE - items cleared from state');
+		console.log('📦 archiveAndClear DONE');
 	}
 
 	async function restoreArchivedList() {
 		console.log('🔄 Restoring archived list...');
 		const archived = await getArchivedList();
 		if (!archived) return;
+		
+		const restoredItems: ShoppingItem[] = [];
 		
 		// Restore items EXACTLY as they were (with done status!)
 		// User will decide what to uncheck
@@ -131,13 +113,14 @@
 				await toggleItemDone(restoredItem.id);
 			}
 			
-			items = [{ ...restoredItem, done: item.done }, ...items];
+			restoredItems.push({ ...restoredItem, done: item.done });
 			addedItemsSet.add(item.text.toLowerCase());
 		}
 		
-		console.log('✅ Restored', items.length, 'items with their done status');
-		showArchiveHint = false;
-		hasArchivedList = false; // Back to normal state
+		console.log('✅ Restored', restoredItems.length, 'items with their done status');
+		
+		// Dispatch to state machine
+		dispatch({ type: 'RESTORE_ARCHIVE', items: restoredItems });
 		
 		// Focus input at the end to continue typing
 		if (textareaElement) {
@@ -209,7 +192,7 @@
 		// Add new items to the list
 		for (const itemText of newItemsToAdd) {
 			const newItem = await addItem(itemText);
-			items = [newItem, ...items]; // Add to beginning (newest on top)
+			dispatch({ type: 'ITEM_ADDED', item: newItem });
 			console.log('✅ Added:', newItem);
 		}
 		
@@ -237,7 +220,7 @@
 				const lowerText = itemToAdd.toLowerCase();
 				if (!addedItemsSet.has(lowerText)) {
 					const newItem = await addItem(itemToAdd);
-					items = [newItem, ...items];
+					dispatch({ type: 'ITEM_ADDED', item: newItem });
 					addedItemsSet.add(lowerText);
 				}
 				
@@ -268,29 +251,17 @@
 		
 		autoGrow();
 		
-		// If user starts typing when all items are done -> hide done message, archive and show hint
-		if (inputText.length > 0 && allItemsDone && items.length > 0) {
+		// If user starts typing when all items are done -> archive and transition to ARCHIVED_AVAILABLE
+		if (inputText.length > 0 && appState.type === 'ALL_DONE') {
 			console.log('🆕 User starting new list after completing old one - archiving now');
 			// Save what user is typing
 			const typedText = inputText;
-			// Hide done message
-			showDoneMessage = false;
 			await archiveAndClear();
+			// Dispatch START_TYPING event
+			dispatch({ type: 'START_TYPING' });
 			// Restore what user typed (don't lose their first letter!)
 			inputText = typedText;
-			// Show hint
-			showArchiveHint = true;
 			// Don't return - let the rest of handleInput process the text
-		}
-		
-		// If user starts typing after archiving, clear the old list from UI and show hint
-		if (inputText.length > 0 && hasArchivedList && items.length > 0) {
-			console.log('🆕 User starting new list - clearing old one and showing hint');
-			// User is starting a new list - clear from UI (already cleared from DB)
-			items = [];
-			addedItemsSet.clear();
-			// Show hint NOW (when they start typing, not when they delete text)
-			showArchiveHint = true;
 		}
 		
 		// Count separators (commas and newlines)
@@ -306,24 +277,11 @@
 			console.log('❌ No new separator, just editing - skipping checkAndAddNewItems');
 			previousSeparatorCount = currentSeparatorCount;
 		}
-		
-		// Hide hint when actually adding items (not just typing)
-		if (inputText.length > 0 && items.length > 0) {
-			showArchiveHint = false;
-			hasArchivedList = false; // Reset archive state when user is working with items
-		}
 	}
 
 	async function handlePaste() {
 		// Wait a bit for paste to complete, then process
 		setTimeout(async () => {
-			// If pasting after archiving, clear the old list from UI
-			if (hasArchivedList && items.length > 0) {
-				items = [];
-				addedItemsSet.clear();
-				showArchiveHint = true; // Show hint when clearing
-			}
-			
 			// If text doesn't end with separator, add comma to process last item
 			const trimmed = inputText.trim();
 			if (trimmed && !trimmed.endsWith(',') && !trimmed.endsWith('\n')) {
@@ -336,22 +294,16 @@
 			
 			await checkAndAddNewItems();
 			
-			// Hide hint after adding items
-			if (items.length > 0) {
-				showArchiveHint = false;
-				hasArchivedList = false; // Reset archive state
-			}
-			
 			autoGrow();
 		}, 10);
 	}
 
 	async function handleCheckboxChange(id: string) {
 		await toggleItemDone(id);
-		items = items.map((item: ShoppingItem) => (item.id === id ? { ...item, done: !item.done } : item));
+		dispatch({ type: 'ITEM_TOGGLED', id });
 		
 		// Check if all items are now done
-		checkIfAllDone();
+		checkAndDispatchAllDone();
 	}
 
 	function handleTouchStart(event: TouchEvent, itemId: string) {
@@ -399,10 +351,10 @@
 			const item = items.find((i: ShoppingItem) => i.id === itemId);
 			if (item && !item.done) {
 				await toggleItemDone(itemId);
-				items = items.map((i: ShoppingItem) => (i.id === itemId ? { ...i, done: true } : i));
+				dispatch({ type: 'ITEM_TOGGLED', id: itemId });
 				
 				// Check if all items are now done
-				checkIfAllDone();
+				checkAndDispatchAllDone();
 			}
 			currentSwipeId = null;
 			swipeProgress = { ...swipeProgress, [itemId]: 0 };
@@ -500,7 +452,7 @@
 		</form>
 
 		<!-- Done message (shown after all items done - yellow highlighter) -->
-		{#if showDoneMessage}
+		{#if appState.type === 'ALL_DONE'}
 			<div class="mb-4" transition:fade={{ duration: 500 }}>
 				<span 
 					class="inline-block px-2 py-1 rounded text-base bg-[#FFF4C2] text-[#5A4A00] dark:bg-[#3A3420] dark:text-[#F3E6A1]"
@@ -512,8 +464,11 @@
 
 		<!-- Shopping List -->
 		<div>
-			{#if items.length === 0 && !isLoading}
-			{#if showArchiveHint}
+			{#if appState.type === 'EMPTY'}
+				<div class="py-8 text-center text-[#6B6B6B] dark:text-[#9A9A9A]" transition:fade={{ duration: 500 }}>
+					<p>Your list is empty. Start adding items!</p>
+				</div>
+			{:else if appState.type === 'ARCHIVED_AVAILABLE'}
 				<div class="mb-4" transition:fade={{ duration: 500 }}>
 					<span class="inline-block px-2 py-1 rounded bg-[#E8F0FF] dark:bg-[#1E2A3D]">
 						<button
@@ -525,12 +480,7 @@
 						<span class="text-[#243A5E] dark:text-[#C7D7FF]"> Type to start a new one.</span>
 					</span>
 				</div>
-			{:else if !hasArchivedList}
-				<div class="py-8 text-center text-[#6B6B6B] dark:text-[#9A9A9A]" transition:fade={{ duration: 500 }}>
-					<p>Your list is empty. Start adding items!</p>
-				</div>
-			{/if}
-			{:else}
+			{:else if appState.type === 'ACTIVE' || appState.type === 'ALL_DONE'}
 				{#each items as item (item.id)}
 					<div
 						transition:fade={{ duration: 600 }}
