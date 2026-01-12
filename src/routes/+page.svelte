@@ -439,7 +439,7 @@
 				oninput={handleInput}
 				onkeydown={handleKeydown}
 				onpaste={handlePaste}
-				placeholder="Add items to your list..."
+				placeholder="Type items ..."
 				class="w-full resize-none rounded border border-[#6B6B6B] dark:border-[#9A9A9A] bg-white dark:bg-[#1a1a1a] text-[#2A2A2A] dark:text-[#D4D4D4] px-4 py-3 transition-all focus:outline-none focus:shadow-sm placeholder-[#6B6B6B] dark:placeholder-[#9A9A9A] {isScrolled ? 'overflow-y-auto' : 'overflow-hidden'}"
 				rows="1"
 				style="min-height: 60px; font-size: 24px; line-height: 1.4;"
@@ -464,11 +464,7 @@
 
 		<!-- Shopping List -->
 		<div>
-			{#if appState.type === 'EMPTY'}
-				<div class="py-8 text-center text-[#6B6B6B] dark:text-[#9A9A9A]" transition:fade={{ duration: 500 }}>
-					<p>Your list is empty. Start adding items!</p>
-				</div>
-			{:else if appState.type === 'ARCHIVED_AVAILABLE'}
+			{#if appState.type === 'ARCHIVED_AVAILABLE'}
 				<div class="mb-4" transition:fade={{ duration: 500 }}>
 					<span class="inline-block px-2 py-1 rounded bg-[#E8F0FF] dark:bg-[#1E2A3D]">
 						<button
