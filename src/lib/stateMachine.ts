@@ -76,18 +76,16 @@ export function transition(state: AppState, event: AppEvent): AppState {
 			}
 			break;
 
-		case 'ARCHIVED_AVAILABLE':
-			if (event.type === 'ITEM_ADDED') {
-				return { type: 'ACTIVE', items: [event.item] };
-			}
-			if (event.type === 'RESTORE_ARCHIVE') {
-				const allDone = event.items.every((item) => item.done);
-				if (allDone) {
-					return { type: 'ALL_DONE', items: event.items };
-				}
-				return { type: 'ACTIVE', items: event.items };
-			}
-			break;
+	case 'ARCHIVED_AVAILABLE':
+		if (event.type === 'ITEM_ADDED') {
+			return { type: 'ACTIVE', items: [event.item] };
+		}
+		if (event.type === 'RESTORE_ARCHIVE') {
+			// Always go to ACTIVE when restoring, even if all items are done
+			// User can uncheck items or add new ones
+			return { type: 'ACTIVE', items: event.items };
+		}
+		break;
 	}
 
 	console.warn('⚠️ Unhandled transition:', state.type, '+', event.type);

@@ -30,10 +30,9 @@
 	let touchStartX = 0;
 	let touchStartY = 0;
 	let currentSwipeId: string | null = null;
-	let swipeProgress = $state<Record<string, number>>({}); // Track swipe progress for each item
-	let addedItemsSet = $state(new Set<string>()); // Track which items have been added
-	let isScrolled = $state(false);
-	let previousSeparatorCount = 0; // Track number of separators to detect new additions
+let swipeProgress = $state<Record<string, number>>({}); // Track swipe progress for each item
+let addedItemsSet = $state(new Set<string>()); // Track which items have been added
+let isScrolled = $state(false);
 
 	onMount(() => {
 		// Load items from IndexedDB
@@ -143,107 +142,79 @@
 		textareaElement.style.height = newHeight + 'px';
 	}
 
-	function parseInputItems(text: string): string[] {
-		// Only parse COMPLETE items - those followed by comma or newline
-		// Don't parse the last line if user is still typing on it
-		const items: string[] = [];
-		
-		// Split by comma or newline, but keep track of what separator was used
-		const parts = text.split(/([,\n])/); // This keeps the separators
-		
-		for (let i = 0; i < parts.length; i++) {
-			const part = parts[i].trim();
-			
-			// Skip empty parts and separators
-			if (!part || part === ',' || part === '\n') continue;
-			
-			// Only add if followed by a separator (comma or newline)
-			// Check if next item is a separator
-			if (i + 1 < parts.length && (parts[i + 1] === ',' || parts[i + 1] === '\n')) {
-				items.push(part);
-			}
-		}
-		
-		console.log('📦 parseInputItems returning only COMPLETE items:', items);
-		return items;
-	}
-
-	async function checkAndAddNewItems() {
-		console.log('🔍 checkAndAddNewItems - inputText:', inputText);
-		const currentItems = parseInputItems(inputText);
-		console.log('📋 Parsed items:', currentItems);
-		console.log('✅ Already added:', Array.from(addedItemsSet));
-		
-		const newItemsToAdd: string[] = [];
-
-		// Find items that haven't been added yet
-		for (const itemText of currentItems) {
-			const lowerText = itemText.toLowerCase();
-			if (!addedItemsSet.has(lowerText)) {
-				console.log('🆕 New item to add:', itemText);
-				newItemsToAdd.push(itemText);
-				addedItemsSet.add(lowerText);
-			} else {
-				console.log('⏭️ Skipping duplicate:', itemText);
-			}
-		}
-
-		console.log('➕ Adding', newItemsToAdd.length, 'new items');
-		// Add new items to the list
-		for (const itemText of newItemsToAdd) {
-			const newItem = await addItem(itemText);
-			dispatch({ type: 'ITEM_ADDED', item: newItem });
-			console.log('✅ Added:', newItem);
-		}
-		
-		// Clear input after adding items
-		if (newItemsToAdd.length > 0) {
-			console.log('🧹 Clearing input after adding items');
-			inputText = '';
-			previousSeparatorCount = 0; // Reset separator count
-		}
-	}
 
 	async function handleKeydown(event: KeyboardEvent) {
-		console.log('⌨️ Key pressed:', event.key);
+		console.log('⌨️ Key pressed:', event.key, 'State:', appState.type);
 		
-		// Prevent Enter from creating new line - add item directly
+		// Enter = add items (parse for smart separators)
 		if (event.key === 'Enter') {
 			event.preventDefault();
 			
-			// If there's text, add it directly
 			if (inputText.trim()) {
-				console.log('✅ Enter pressed - adding item directly');
-				const itemToAdd = inputText.trim();
+				console.log('✅ Enter pressed, text:', inputText);
 				
-				// Add the item
-				const lowerText = itemToAdd.toLowerCase();
-				if (!addedItemsSet.has(lowerText)) {
-					const newItem = await addItem(itemToAdd);
-					dispatch({ type: 'ITEM_ADDED', item: newItem });
-					addedItemsSet.add(lowerText);
+				// Parse text with smart separators (", " or ". " split into multiple items)
+				// "1,5kg" → 1 item, "kanapka, woda" → 2 items
+				const itemsToAdd = inputText
+					.split(/[,\.]\s+/) // Split by comma/period + space(s)
+					.map(s => s.trim())
+					.filter(s => s.length > 0);
+				
+				console.log('📋 Parsed items from input:', itemsToAdd);
+				
+				// Add each item
+				for (const itemText of itemsToAdd) {
+					const lowerText = itemText.toLowerCase();
+					if (!addedItemsSet.has(lowerText)) {
+						console.log('🆕 Adding item:', itemText);
+						const newItem = await addItem(itemText);
+						dispatch({ type: 'ITEM_ADDED', item: newItem });
+						addedItemsSet.add(lowerText);
+					} else {
+						console.log('⏭️ Skipping duplicate:', itemText);
+					}
 				}
 				
 				// Clear input
 				inputText = '';
-				previousSeparatorCount = 0;
+				console.log('🧹 Input cleared');
+			} else {
+				console.log('❌ No text to add');
 			}
 		}
 	}
 
-	async function addItemsFromInput() {
-		console.log('➕ addItemsFromInput called (form submit), inputText:', inputText);
-		if (inputText.trim()) {
-			await checkAndAddNewItems();
-			autoGrow();
-		}
+function handleFormSubmit(e: SubmitEvent) {
+	console.log('📝 FORM SUBMIT (iOS keyboard)');
+	e.preventDefault();
+	
+	// Same logic as Enter key
+	if (inputText.trim()) {
+		// Parse text with smart separators
+		const itemsToAdd = inputText
+			.split(/[,\.]\s+/)
+			.map(s => s.trim())
+			.filter(s => s.length > 0);
+		
+		console.log('📋 Form submit - parsed items:', itemsToAdd);
+		
+		// Add each item
+		(async () => {
+			for (const itemText of itemsToAdd) {
+				const lowerText = itemText.toLowerCase();
+				if (!addedItemsSet.has(lowerText)) {
+					const newItem = await addItem(itemText);
+					dispatch({ type: 'ITEM_ADDED', item: newItem });
+					addedItemsSet.add(lowerText);
+				}
+			}
+			
+		// Clear input
+		inputText = '';
+		autoGrow();
+		})();
 	}
-
-	function handleFormSubmit(e: SubmitEvent) {
-		console.log('📝 FORM SUBMIT!');
-		e.preventDefault();
-		addItemsFromInput();
-	}
+}
 
 	async function handleInput() {
 		console.log('🎯 handleInput CALLED');
@@ -264,35 +235,40 @@
 			// Don't return - let the rest of handleInput process the text
 		}
 		
-		// Count separators (commas and newlines)
-		const currentSeparatorCount = (inputText.match(/[,\n]/g) || []).length;
-		console.log('🔢 Separator count - previous:', previousSeparatorCount, 'current:', currentSeparatorCount);
-		
-		// Only add items if separator count INCREASED (new comma/enter added)
-		if (currentSeparatorCount > previousSeparatorCount) {
-			console.log('🔹 New separator detected, checking for new items...');
-			await checkAndAddNewItems();
-			previousSeparatorCount = currentSeparatorCount;
-		} else {
-			console.log('❌ No new separator, just editing - skipping checkAndAddNewItems');
-			previousSeparatorCount = currentSeparatorCount;
-		}
+	// Don't auto-add on comma/period anymore - only on Enter or Paste
+	// Just let user type freely
 	}
 
 	async function handlePaste() {
-		// Wait a bit for paste to complete, then process
+		// Wait a bit for paste to complete, then auto-add items
 		setTimeout(async () => {
-			// If text doesn't end with separator, add comma to process last item
-			const trimmed = inputText.trim();
-			if (trimmed && !trimmed.endsWith(',') && !trimmed.endsWith('\n')) {
-				console.log('📋 Paste: adding comma to process last item');
-				inputText = inputText + ',';
+			if (inputText.trim()) {
+				console.log('📋 Paste detected, auto-adding items');
+				
+				// Parse pasted text with smart separators
+				const itemsToAdd = inputText
+					.split(/[,\.]\s+/) // Split by comma/period + space(s)
+					.map(s => s.trim())
+					.filter(s => s.length > 0);
+				
+				console.log('📋 Parsed items from paste:', itemsToAdd);
+				
+				// Add each item
+				for (const itemText of itemsToAdd) {
+					const lowerText = itemText.toLowerCase();
+					if (!addedItemsSet.has(lowerText)) {
+						console.log('🆕 Adding pasted item:', itemText);
+						const newItem = await addItem(itemText);
+						dispatch({ type: 'ITEM_ADDED', item: newItem });
+						addedItemsSet.add(lowerText);
+					} else {
+						console.log('⏭️ Skipping duplicate:', itemText);
+					}
+				}
+				
+			// Clear input after paste
+			inputText = '';
 			}
-			
-			// Update separator count before adding
-			previousSeparatorCount = (inputText.match(/[,\n]/g) || []).length;
-			
-			await checkAndAddNewItems();
 			
 			autoGrow();
 		}, 10);
@@ -339,14 +315,14 @@
 		const element = event.currentTarget as HTMLElement;
 		const elementWidth = element.offsetWidth;
 
-		// Calculate swipe percentage (only positive/right swipes)
-		const swipePercentage = Math.max(0, (deltaX / elementWidth) * 100);
-		
-		// Update visual progress (cap at 100%)
-		swipeProgress = { ...swipeProgress, [itemId]: Math.min(swipePercentage, 100) };
+	// Calculate swipe percentage (only positive/right swipes)
+	const swipePercentage = Math.max(0, (deltaX / elementWidth) * 100);
+	
+	// Update visual progress (cap at 100%)
+	swipeProgress = { ...swipeProgress, [itemId]: Math.min(swipePercentage, 100) };
 
-		// Check if swiped 30% or more of the element width from left to right
-		if (swipePercentage >= 30) {
+	// Check if swiped 20% or more of the element width from left to right
+	if (swipePercentage >= 20) {
 			// Mark as done
 			const item = items.find((i: ShoppingItem) => i.id === itemId);
 			if (item && !item.done) {
@@ -451,36 +427,36 @@
 			<button type="submit" class="hidden" tabindex="-1" aria-hidden="true">Submit</button>
 		</form>
 
-		<!-- Done message (shown after all items done - yellow highlighter) -->
-		{#if appState.type === 'ALL_DONE'}
-			<div class="mb-4" transition:fade={{ duration: 500 }}>
-				<span 
-					class="inline-block px-2 py-1 rounded text-base bg-[#FFF4C2] text-[#5A4A00] dark:bg-[#3A3420] dark:text-[#F3E6A1]"
+	<!-- Messages (Done / Archive hint) -->
+	{#if appState.type === 'ALL_DONE'}
+		<div class="mb-4" transition:fade={{ duration: 500 }}>
+			<span 
+				class="inline-block px-2 py-1 rounded text-base bg-[#FFF4C2] text-[#5A4A00] dark:bg-[#3A3420] dark:text-[#F3E6A1]"
+			>
+				— all done —
+			</span>
+		</div>
+	{:else if appState.type === 'ARCHIVED_AVAILABLE'}
+		<div class="mb-4" transition:fade={{ duration: 500 }}>
+			<span class="inline-block px-2 py-1 rounded bg-[#E8F0FF] dark:bg-[#1E2A3D]">
+				<button
+					onclick={restoreArchivedList}
+					class="underline text-[#243A5E] dark:text-[#C7D7FF] hover:opacity-80 transition-opacity"
 				>
-					— done —
-				</span>
-			</div>
-		{/if}
+					Old list is still here.
+				</button>
+				<span class="text-[#243A5E] dark:text-[#C7D7FF]"> Type to start a new one.</span>
+			</span>
+		</div>
+	{/if}
 
-		<!-- Shopping List -->
-		<div>
-			{#if appState.type === 'ARCHIVED_AVAILABLE'}
-				<div class="mb-4" transition:fade={{ duration: 500 }}>
-					<span class="inline-block px-2 py-1 rounded bg-[#E8F0FF] dark:bg-[#1E2A3D]">
-						<button
-							onclick={restoreArchivedList}
-							class="underline text-[#243A5E] dark:text-[#C7D7FF] hover:opacity-80 transition-opacity"
-						>
-							Old list is still here.
-						</button>
-						<span class="text-[#243A5E] dark:text-[#C7D7FF]"> Type to start a new one.</span>
-					</span>
-				</div>
-			{:else if appState.type === 'ACTIVE' || appState.type === 'ALL_DONE'}
-				{#each items as item (item.id)}
-					<div
-						transition:fade={{ duration: 600 }}
-						class="py-2 px-1 cursor-pointer relative"
+	<!-- Shopping List -->
+	<div>
+		{#if appState.type === 'ACTIVE' || appState.type === 'ALL_DONE'}
+			{#each items as item (item.id)}
+				<div
+					transition:fade={{ duration: 1200 }}
+					class="py-2 px-1 cursor-pointer relative"
 						role="button"
 						tabindex="0"
 						ontouchstart={createTouchStartHandler(item.id)}
