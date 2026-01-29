@@ -441,6 +441,7 @@ function handleFormSubmit(e: SubmitEvent) {
 			<span class="inline-block px-2 py-1 rounded bg-[#E8F0FF] dark:bg-[#1E2A3D]">
 				<button
 					onclick={restoreArchivedList}
+					tabindex="-1"
 					class="underline text-[#243A5E] dark:text-[#C7D7FF] hover:opacity-80 transition-opacity"
 				>
 					Old list is still here.
