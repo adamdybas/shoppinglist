@@ -2,10 +2,12 @@
 	import { onMount } from 'svelte';
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
+	import { injectAnalytics } from '$lib/analytics';
 
 	let { children } = $props();
 
 	onMount(() => {
+		injectAnalytics();
 		// Register service worker for PWA
 		if ('serviceWorker' in navigator) {
 			navigator.serviceWorker
