@@ -416,7 +416,7 @@ function handleFormSubmit(e: SubmitEvent) {
 				onkeydown={handleKeydown}
 				onpaste={handlePaste}
 				placeholder="Type items ..."
-				class="w-full resize-none rounded border border-[#6B6B6B] dark:border-[#9A9A9A] bg-white dark:bg-[#1a1a1a] text-[#2A2A2A] dark:text-[#D4D4D4] px-4 py-3 transition-all focus:outline-none focus:shadow-sm placeholder-[#6B6B6B] dark:placeholder-[#9A9A9A] {isScrolled ? 'overflow-y-auto' : 'overflow-hidden'}"
+				class="w-full resize-none rounded-lg border border-[#B8B1A3] dark:border-[#6E6A63] bg-white dark:bg-[#1a1a1a] text-[#2A2A2A] dark:text-[#D4D4D4] px-4 py-3 transition-all focus:outline-none focus-visible:outline-none focus:border-[rgba(180,170,150,0.5)] dark:focus:border-[rgba(180,170,150,0.5)] focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] dark:focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] placeholder-[#6B6B6B] dark:placeholder-[#9A9A9A] {isScrolled ? 'overflow-y-auto' : 'overflow-hidden'}"
 				rows="1"
 				style="min-height: 60px; font-size: 24px; line-height: 1.4;"
 				autocorrect="off"
@@ -457,7 +457,7 @@ function handleFormSubmit(e: SubmitEvent) {
 			{#each items as item (item.id)}
 				<div
 					transition:fade={{ duration: 1200 }}
-					class="py-2 px-1 cursor-pointer relative"
+					class="py-3 px-1 cursor-pointer relative"
 						role="button"
 						tabindex="0"
 						ontouchstart={createTouchStartHandler(item.id)}
@@ -521,6 +521,14 @@ function handleFormSubmit(e: SubmitEvent) {
 
 	textarea::-webkit-scrollbar-thumb:hover {
 		background: #6B6B6B;
+	}
+
+	/* Override native focus ring (e.g., Safari blue outline) */
+	textarea:focus,
+	textarea:focus-visible {
+		outline: none;
+		border-color: rgba(180, 170, 150, 0.5);
+		box-shadow: 0 0 0 3px rgba(180, 170, 150, 0.5);
 	}
 
 	/* Dark mode - follows system preferences */
