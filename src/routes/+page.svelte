@@ -382,33 +382,33 @@ function handleFormSubmit(e: SubmitEvent) {
 		<!-- Header -->
 		<div class="mb-6 flex items-center justify-between">
 			<h1 class="text-3xl font-semibold text-[#2A2A2A] dark:text-[#D4D4D4]">Shopping List</h1>
-			{#if items.length > 0}
-				<button
-					onclick={shareList}
-					class="text-[#6B6B6B] dark:text-[#9A9A9A] hover:text-[#2A2A2A] dark:hover:text-[#D4D4D4] transition-colors p-2"
-					aria-label="Share list"
+			<button
+				onclick={shareList}
+				class="text-[#6B6B6B] dark:text-[#9A9A9A] hover:text-[#2A2A2A] dark:hover:text-[#D4D4D4] transition-colors p-2 {items.length > 0 ? '' : 'opacity-0 pointer-events-none'}"
+				aria-label="Share list"
+				aria-hidden={items.length === 0}
+				tabindex={items.length > 0 ? 0 : -1}
+			>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
 				>
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						width="24"
-						height="24"
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-						<polyline points="16 6 12 2 8 6" />
-						<line x1="12" y1="2" x2="12" y2="15" />
-					</svg>
-				</button>
-			{/if}
+					<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+					<polyline points="16 6 12 2 8 6" />
+					<line x1="12" y1="2" x2="12" y2="15" />
+				</svg>
+			</button>
 		</div>
 
 		<!-- Input Textarea with hidden form for iOS support -->
-		<form onsubmit={handleFormSubmit} class="mb-6 sticky top-0 bg-white dark:bg-[#0F0F0F] z-10 {isScrolled ? 'py-2 shadow-sm dark:shadow-gray-800' : 'py-0'}">
+		<form onsubmit={handleFormSubmit} class="mb-6 sticky top-0 bg-white dark:bg-[#0F0F0F] z-10 {isScrolled ? 'py-2' : 'py-0'}">
 			<textarea
 				bind:this={textareaElement}
 				bind:value={inputText}
@@ -490,8 +490,8 @@ function handleFormSubmit(e: SubmitEvent) {
 						
 						<span
 							class="block relative {item.done
-								? 'text-[#6B6B6B] dark:text-[#9A9A9A] line-through'
-								: 'text-[#2A2A2A] dark:text-[#D4D4D4]'}"
+								? 'text-[#6B6B6B] line-through'
+								: 'text-[#F5F0E6]'}"
 							style="font-size: 21px; line-height: 1.4;"
 						>
 							{item.text}
