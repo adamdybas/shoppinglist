@@ -14,6 +14,8 @@
 
 	// State machine!
 	let appState = $state<AppState>({ type: 'LOADING' });
+	let showArchiveHint = $state(false);
+	let archiveHintTimeout: ReturnType<typeof setTimeout> | null = null;
 	
 	// Helper to dispatch events
 	function dispatch(event: AppEvent) {
@@ -33,6 +35,25 @@
 let swipeProgress = $state<Record<string, number>>({}); // Track swipe progress for each item
 let addedItemsSet = $state(new Set<string>()); // Track which items have been added
 let isScrolled = $state(false);
+
+	$effect(() => {
+		if (archiveHintTimeout) {
+			clearTimeout(archiveHintTimeout);
+			archiveHintTimeout = null;
+		}
+
+		if (appState.type === 'ARCHIVED_AVAILABLE') {
+			// Short delay so the hint doesn't pop immediately.
+			showArchiveHint = false;
+			archiveHintTimeout = setTimeout(() => {
+				if (appState.type === 'ARCHIVED_AVAILABLE') {
+					showArchiveHint = true;
+				}
+			}, 200);
+		} else {
+			showArchiveHint = false;
+		}
+	});
 
 	onMount(() => {
 		// Load items from IndexedDB
@@ -436,7 +457,7 @@ function handleFormSubmit(e: SubmitEvent) {
 				— all done —
 			</span>
 		</div>
-	{:else if appState.type === 'ARCHIVED_AVAILABLE'}
+	{:else if appState.type === 'ARCHIVED_AVAILABLE' && showArchiveHint}
 		<div class="mb-4" transition:fade={{ duration: 500 }}>
 			<span class="inline-block px-2 py-1 rounded bg-[#E8F0FF] dark:bg-[#1E2A3D]">
 				<button
