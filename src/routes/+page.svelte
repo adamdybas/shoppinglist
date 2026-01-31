@@ -14,8 +14,8 @@
 
 	// State machine!
 	let appState = $state<AppState>({ type: 'LOADING' });
-	let showArchiveHint = $state(false);
-	let archiveHintTimeout: ReturnType<typeof setTimeout> | null = null;
+	let displayItems = $state<ShoppingItem[]>([]);
+	let listFadeTimeout: ReturnType<typeof setTimeout> | null = null;
 	
 	// Helper to dispatch events
 	function dispatch(event: AppEvent) {
@@ -37,23 +37,25 @@ let addedItemsSet = $state(new Set<string>()); // Track which items have been ad
 let isScrolled = $state(false);
 
 	$effect(() => {
-		if (archiveHintTimeout) {
-			clearTimeout(archiveHintTimeout);
-			archiveHintTimeout = null;
+		if (listFadeTimeout) {
+			clearTimeout(listFadeTimeout);
+			listFadeTimeout = null;
 		}
 
-		if (appState.type === 'ARCHIVED_AVAILABLE') {
-			// Short delay so the hint doesn't pop immediately.
-			showArchiveHint = false;
-			archiveHintTimeout = setTimeout(() => {
+		if (appState.type === 'ACTIVE' || appState.type === 'ALL_DONE') {
+			displayItems = appState.items;
+		} else if (appState.type === 'ARCHIVED_AVAILABLE') {
+			// Fade out the last list before removing it from the DOM.
+			listFadeTimeout = setTimeout(() => {
 				if (appState.type === 'ARCHIVED_AVAILABLE') {
-					showArchiveHint = true;
+					displayItems = [];
 				}
 			}, 200);
 		} else {
-			showArchiveHint = false;
+			displayItems = [];
 		}
 	});
+
 
 	onMount(() => {
 		// Load items from IndexedDB
@@ -449,33 +451,38 @@ function handleFormSubmit(e: SubmitEvent) {
 		</form>
 
 	<!-- Messages (Done / Archive hint) -->
-	{#if appState.type === 'ALL_DONE'}
-		<div class="mb-4" transition:fade={{ duration: 500 }}>
-			<span 
-				class="inline-block px-2 py-1 rounded text-base bg-[#FFF4C2] text-[#5A4A00] dark:bg-[#3A3420] dark:text-[#F3E6A1]"
+	{#if appState.type === 'ALL_DONE' || appState.type === 'ARCHIVED_AVAILABLE'}
+		<div class="mb-4 relative min-h-[32px]">
+			<div
+				class="absolute left-0 top-0 transition-opacity duration-200 {appState.type === 'ALL_DONE' ? 'opacity-100' : 'opacity-0 pointer-events-none'}"
 			>
-				— all done —
-			</span>
-		</div>
-	{:else if appState.type === 'ARCHIVED_AVAILABLE' && showArchiveHint}
-		<div class="mb-4" transition:fade={{ duration: 500 }}>
-			<span class="inline-block px-2 py-1 rounded bg-[#E8F0FF] dark:bg-[#1E2A3D]">
-				<button
-					onclick={restoreArchivedList}
-					tabindex="-1"
-					class="underline text-[#243A5E] dark:text-[#C7D7FF] hover:opacity-80 transition-opacity"
+				<span 
+					class="inline-block px-2 py-1 rounded text-base bg-[#FFF4C2] text-[#5A4A00] dark:bg-[#3A3420] dark:text-[#F3E6A1]"
 				>
-					Old list is still here.
-				</button>
-				<span class="text-[#243A5E] dark:text-[#C7D7FF]"> Type to start a new one.</span>
-			</span>
+					— all done —
+				</span>
+			</div>
+			<div
+				class="absolute left-0 top-0 transition-opacity duration-200 {appState.type === 'ARCHIVED_AVAILABLE' ? 'opacity-100' : 'opacity-0 pointer-events-none'}"
+			>
+				<span class="inline-block px-2 py-1 rounded bg-[#E8F0FF] dark:bg-[#1E2A3D]">
+					<button
+						onclick={restoreArchivedList}
+						tabindex="-1"
+						class="underline text-[#243A5E] dark:text-[#C7D7FF] hover:opacity-80 transition-opacity"
+					>
+						Old list is still here.
+					</button>
+					<span class="text-[#243A5E] dark:text-[#C7D7FF]"> Type to start a new one.</span>
+				</span>
+			</div>
 		</div>
 	{/if}
 
 	<!-- Shopping List -->
-	<div>
-		{#if appState.type === 'ACTIVE' || appState.type === 'ALL_DONE'}
-			{#each items as item (item.id)}
+	<div class="transition-opacity duration-200 {appState.type === 'ARCHIVED_AVAILABLE' ? 'opacity-0' : 'opacity-100'}">
+		{#if displayItems.length > 0}
+			{#each displayItems as item (item.id)}
 				<div
 					transition:fade={{ duration: 1200 }}
 					class="py-3 px-1 cursor-pointer relative"
@@ -511,8 +518,8 @@ function handleFormSubmit(e: SubmitEvent) {
 						
 						<span
 							class="block relative {item.done
-								? 'text-[#6B6B6B] line-through'
-								: 'text-[#F5F0E6]'}"
+								? 'text-[#6B6B6B] dark:text-[#9A9A9A] line-through'
+								: 'text-[#2A2A2A] dark:text-[#F5F0E6]'}"
 							style="font-size: 21px; line-height: 1.4;"
 						>
 							{item.text}
