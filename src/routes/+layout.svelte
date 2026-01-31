@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import './layout.css';
-	import favicon from '$lib/assets/favicon.svg';
 	import { injectAnalytics } from '$lib/analytics';
 
 	let { children } = $props();
@@ -23,7 +22,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href="/icon.svg" />
 	<link rel="manifest" href="/manifest.json" />
 	<meta name="theme-color" content="#6366f1" />
 	<meta name="mobile-web-app-capable" content="yes" />
