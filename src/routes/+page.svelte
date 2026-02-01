@@ -121,6 +121,12 @@
 
 	async function restoreArchivedList() {
 		console.log('🔄 Restoring archived list...');
+		
+		// Focus IMMEDIATELY on user tap (before async work) - required for mobile keyboard
+		if (textareaElement) {
+			textareaElement.focus();
+		}
+		
 		const archived = await getArchivedList();
 		if (!archived) return;
 
@@ -144,16 +150,6 @@
 
 		// Dispatch to state machine
 		dispatch({ type: 'RESTORE_ARCHIVE', items: restoredItems });
-
-		// Focus input at the end to continue typing
-		if (textareaElement) {
-			setTimeout(() => {
-				textareaElement.focus();
-				// Set cursor to end of text
-				const length = inputText.length;
-				textareaElement.setSelectionRange(length, length);
-			}, 100);
-		}
 	}
 
 	function autoGrow() {
