@@ -162,6 +162,34 @@
 		textareaElement.style.height = newHeight + 'px';
 	}
 
+	// Helper: add new item OR reactivate existing done item
+	async function addOrReactivateItem(itemText: string) {
+		const lowerText = itemText.toLowerCase();
+		
+		// Check if item already exists
+		if (addedItemsSet.has(lowerText)) {
+			// Find the existing item
+			const existingItem = items.find(
+				(i: ShoppingItem) => i.text.toLowerCase() === lowerText
+			);
+			
+			// If it's done, reactivate it
+			if (existingItem && existingItem.done) {
+				console.log('🔄 Reactivating done item:', itemText);
+				await toggleItemDone(existingItem.id);
+				dispatch({ type: 'ITEM_TOGGLED', id: existingItem.id });
+			} else {
+				console.log('⏭️ Skipping active duplicate:', itemText);
+			}
+		} else {
+			// Add new item
+			console.log('🆕 Adding item:', itemText);
+			const newItem = await addItem(itemText);
+			dispatch({ type: 'ITEM_ADDED', item: newItem });
+			addedItemsSet.add(lowerText);
+		}
+	}
+
 	async function handleKeydown(event: KeyboardEvent) {
 		console.log('⌨️ Key pressed:', event.key, 'State:', appState.type);
 
@@ -181,17 +209,9 @@
 
 				console.log('📋 Parsed items from input:', itemsToAdd);
 
-				// Add each item
+				// Add each item (or reactivate if done)
 				for (const itemText of itemsToAdd) {
-					const lowerText = itemText.toLowerCase();
-					if (!addedItemsSet.has(lowerText)) {
-						console.log('🆕 Adding item:', itemText);
-						const newItem = await addItem(itemText);
-						dispatch({ type: 'ITEM_ADDED', item: newItem });
-						addedItemsSet.add(lowerText);
-					} else {
-						console.log('⏭️ Skipping duplicate:', itemText);
-					}
+					await addOrReactivateItem(itemText);
 				}
 
 				// Clear input
@@ -217,15 +237,10 @@
 
 			console.log('📋 Form submit - parsed items:', itemsToAdd);
 
-			// Add each item
+			// Add each item (or reactivate if done)
 			(async () => {
 				for (const itemText of itemsToAdd) {
-					const lowerText = itemText.toLowerCase();
-					if (!addedItemsSet.has(lowerText)) {
-						const newItem = await addItem(itemText);
-						dispatch({ type: 'ITEM_ADDED', item: newItem });
-						addedItemsSet.add(lowerText);
-					}
+					await addOrReactivateItem(itemText);
 				}
 
 				// Clear input
@@ -272,17 +287,9 @@
 
 				console.log('📋 Parsed items from paste:', itemsToAdd);
 
-				// Add each item
+				// Add each item (or reactivate if done)
 				for (const itemText of itemsToAdd) {
-					const lowerText = itemText.toLowerCase();
-					if (!addedItemsSet.has(lowerText)) {
-						console.log('🆕 Adding pasted item:', itemText);
-						const newItem = await addItem(itemText);
-						dispatch({ type: 'ITEM_ADDED', item: newItem });
-						addedItemsSet.add(lowerText);
-					} else {
-						console.log('⏭️ Skipping duplicate:', itemText);
-					}
+					await addOrReactivateItem(itemText);
 				}
 
 				// Clear input after paste
