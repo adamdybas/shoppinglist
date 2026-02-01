@@ -1,6 +1,5 @@
 import type { ShoppingItem } from './db';
 
-// State definitions
 export type AppState =
 	| { type: 'LOADING' }
 	| { type: 'EMPTY' }
@@ -8,7 +7,6 @@ export type AppState =
 	| { type: 'ALL_DONE'; items: ShoppingItem[] }
 	| { type: 'ARCHIVED_AVAILABLE' };
 
-// Event definitions
 export type AppEvent =
 	| { type: 'LOADED'; items: ShoppingItem[]; hasArchive: boolean }
 	| { type: 'ITEM_ADDED'; item: ShoppingItem }
@@ -17,10 +15,7 @@ export type AppEvent =
 	| { type: 'START_TYPING' }
 	| { type: 'RESTORE_ARCHIVE'; items: ShoppingItem[] };
 
-// State machine transition function
 export function transition(state: AppState, event: AppEvent): AppState {
-	console.log('🔄 State transition:', state.type, '+', event.type);
-
 	switch (state.type) {
 		case 'LOADING':
 			if (event.type === 'LOADED') {
@@ -76,23 +71,20 @@ export function transition(state: AppState, event: AppEvent): AppState {
 			}
 			break;
 
-	case 'ARCHIVED_AVAILABLE':
-		if (event.type === 'ITEM_ADDED') {
-			return { type: 'ACTIVE', items: [event.item] };
-		}
-		if (event.type === 'RESTORE_ARCHIVE') {
-			// Always go to ACTIVE when restoring, even if all items are done
-			// User can uncheck items or add new ones
-			return { type: 'ACTIVE', items: event.items };
-		}
-		break;
+		case 'ARCHIVED_AVAILABLE':
+			if (event.type === 'ITEM_ADDED') {
+				return { type: 'ACTIVE', items: [event.item] };
+			}
+			if (event.type === 'RESTORE_ARCHIVE') {
+				return { type: 'ACTIVE', items: event.items };
+			}
+			break;
 	}
 
-	console.warn('⚠️ Unhandled transition:', state.type, '+', event.type);
+	console.warn('Unhandled transition:', state.type, '+', event.type);
 	return state;
 }
 
-// Helper to check if all items are done
 export function checkAllDone(items: ShoppingItem[]): boolean {
 	return items.length > 0 && items.every((item) => item.done);
 }

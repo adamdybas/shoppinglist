@@ -12,19 +12,14 @@
 	} from '$lib/db';
 	import { transition, checkAllDone, type AppState, type AppEvent } from '$lib/stateMachine';
 
-	// State machine!
 	let appState = $state<AppState>({ type: 'LOADING' });
 	let displayItems = $state<ShoppingItem[]>([]);
 	let listFadeTimeout: ReturnType<typeof setTimeout> | null = null;
 
-	// Helper to dispatch events
 	function dispatch(event: AppEvent) {
-		console.log('📨 Dispatching:', event.type);
 		appState = transition(appState, event);
-		console.log('📍 New state:', appState.type);
 	}
 
-	// Derived values
 	let items = $derived(
 		appState.type === 'ACTIVE' || appState.type === 'ALL_DONE' ? appState.items : []
 	);
@@ -34,8 +29,8 @@
 	let touchStartX = 0;
 	let touchStartY = 0;
 	let currentSwipeId: string | null = null;
-	let swipeProgress = $state<Record<string, number>>({}); // Track swipe progress for each item
-	let addedItemsSet = $state(new Set<string>()); // Track which items have been added
+	let swipeProgress = $state<Record<string, number>>({});
+	let addedItemsSet = $state(new Set<string>());
 	let isScrolled = $state(false);
 
 	$effect(() => {
@@ -47,7 +42,6 @@
 		if (appState.type === 'ACTIVE' || appState.type === 'ALL_DONE') {
 			displayItems = appState.items;
 		} else if (appState.type === 'ARCHIVED_AVAILABLE') {
-			// Fade out the last list before removing it from the DOM.
 			listFadeTimeout = setTimeout(() => {
 				if (appState.type === 'ARCHIVED_AVAILABLE') {
 					displayItems = [];
@@ -59,26 +53,20 @@
 	});
 
 	onMount(() => {
-		// Load items from IndexedDB
 		(async () => {
 			const loadedItems = await getAllItems();
-			// Populate the set with existing items
 			loadedItems.forEach((item: ShoppingItem) => addedItemsSet.add(item.text.toLowerCase()));
 
-			// Check if there's an archived list
 			const archived = await getArchivedList();
 			const hasArchive = archived !== null;
 
-			// Dispatch LOADED event to state machine
 			dispatch({ type: 'LOADED', items: loadedItems, hasArchive });
 		})();
 
-		// Listen for scroll events
 		const handleScroll = () => {
 			const wasScrolled = isScrolled;
 			isScrolled = window.scrollY > 20;
 
-			// Adjust textarea height when scroll state changes
 			if (wasScrolled !== isScrolled) {
 				autoGrow();
 			}
@@ -91,38 +79,22 @@
 	});
 
 	function checkAndDispatchAllDone() {
-		console.log('🔍 checkAndDispatchAllDone called');
 		if (appState.type === 'ACTIVE' && checkAllDone(appState.items)) {
-			console.log('✅ All items done - dispatching ALL_CHECKED');
-			inputText = ''; // Clear input
+			inputText = '';
 			dispatch({ type: 'ALL_CHECKED' });
 		}
 	}
 
 	async function archiveAndClear() {
-		console.log('📦 archiveAndClear START');
-
 		if (appState.type !== 'ALL_DONE') return;
 
-		// Create plain object copy (remove Svelte proxy)
 		const plainItems = JSON.parse(JSON.stringify(appState.items));
-
-		// Archive current list
 		await archiveCurrentList(plainItems);
-
-		// Clear ALL items from IndexedDB immediately
 		await clearAllItems();
-
-		// Clear tracking
 		addedItemsSet.clear();
-
-		console.log('📦 archiveAndClear DONE');
 	}
 
 	async function restoreArchivedList() {
-		console.log('🔄 Restoring archived list...');
-		
-		// Focus IMMEDIATELY on user tap (before async work) - required for mobile keyboard
 		if (textareaElement) {
 			textareaElement.focus();
 		}
@@ -132,12 +104,9 @@
 
 		const restoredItems: ShoppingItem[] = [];
 
-		// Restore items EXACTLY as they were (with done status!)
-		// User will decide what to uncheck
 		for (const item of archived.items) {
 			const restoredItem = await addItem(item.text);
 
-			// If item was done in archive, mark it as done again
 			if (item.done) {
 				await toggleItemDone(restoredItem.id);
 			}
@@ -146,9 +115,6 @@
 			addedItemsSet.add(item.text.toLowerCase());
 		}
 
-		console.log('✅ Restored', restoredItems.length, 'items with their done status');
-
-		// Dispatch to state machine
 		dispatch({ type: 'RESTORE_ARCHIVE', items: restoredItems });
 	}
 
@@ -156,34 +122,24 @@
 		if (!textareaElement) return;
 		textareaElement.style.height = 'auto';
 
-		// If scrolled, limit to ~2 lines (~80px), otherwise up to 50% of screen
 		const maxHeight = isScrolled ? 80 : window.innerHeight * 0.5;
 		const newHeight = Math.min(textareaElement.scrollHeight, maxHeight);
 		textareaElement.style.height = newHeight + 'px';
 	}
 
-	// Helper: add new item OR reactivate existing done item
 	async function addOrReactivateItem(itemText: string) {
 		const lowerText = itemText.toLowerCase();
 		
-		// Check if item already exists
 		if (addedItemsSet.has(lowerText)) {
-			// Find the existing item
 			const existingItem = items.find(
 				(i: ShoppingItem) => i.text.toLowerCase() === lowerText
 			);
 			
-			// If it's done, reactivate it
 			if (existingItem && existingItem.done) {
-				console.log('🔄 Reactivating done item:', itemText);
 				await toggleItemDone(existingItem.id);
 				dispatch({ type: 'ITEM_TOGGLED', id: existingItem.id });
-			} else {
-				console.log('⏭️ Skipping active duplicate:', itemText);
 			}
 		} else {
-			// Add new item
-			console.log('🆕 Adding item:', itemText);
 			const newItem = await addItem(itemText);
 			dispatch({ type: 'ITEM_ADDED', item: newItem });
 			addedItemsSet.add(lowerText);
@@ -191,59 +147,38 @@
 	}
 
 	async function handleKeydown(event: KeyboardEvent) {
-		console.log('⌨️ Key pressed:', event.key, 'State:', appState.type);
-
-		// Enter = add items (parse for smart separators)
 		if (event.key === 'Enter') {
 			event.preventDefault();
 
 			if (inputText.trim()) {
-				console.log('✅ Enter pressed, text:', inputText);
-
-				// Parse text with smart separators (", " or ". " split into multiple items)
-				// "1,5kg" → 1 item, "kanapka, woda" → 2 items
 				const itemsToAdd = inputText
-					.split(/[,\.]\s+/) // Split by comma/period + space(s)
+					.split(/[,\.]\s+/)
 					.map((s) => s.trim())
 					.filter((s) => s.length > 0);
 
-				console.log('📋 Parsed items from input:', itemsToAdd);
-
-				// Add each item (or reactivate if done)
 				for (const itemText of itemsToAdd) {
 					await addOrReactivateItem(itemText);
 				}
 
-				// Clear input
 				inputText = '';
-				console.log('🧹 Input cleared');
-			} else {
-				console.log('❌ No text to add');
 			}
 		}
 	}
 
 	function handleFormSubmit(e: SubmitEvent) {
-		console.log('📝 FORM SUBMIT (iOS keyboard)');
 		e.preventDefault();
 
-		// Same logic as Enter key
 		if (inputText.trim()) {
-			// Parse text with smart separators
 			const itemsToAdd = inputText
 				.split(/[,\.]\s+/)
 				.map((s) => s.trim())
 				.filter((s) => s.length > 0);
 
-			console.log('📋 Form submit - parsed items:', itemsToAdd);
-
-			// Add each item (or reactivate if done)
 			(async () => {
 				for (const itemText of itemsToAdd) {
 					await addOrReactivateItem(itemText);
 				}
 
-				// Clear input
 				inputText = '';
 				autoGrow();
 			})();
@@ -251,48 +186,28 @@
 	}
 
 	async function handleInput() {
-		console.log('🎯 handleInput CALLED');
-		console.log('📝 Current inputText:', JSON.stringify(inputText));
-
 		autoGrow();
 
-		// If user starts typing when all items are done -> archive and transition to ARCHIVED_AVAILABLE
 		if (inputText.length > 0 && appState.type === 'ALL_DONE') {
-			console.log('🆕 User starting new list after completing old one - archiving now');
-			// Save what user is typing
 			const typedText = inputText;
 			await archiveAndClear();
-			// Dispatch START_TYPING event
 			dispatch({ type: 'START_TYPING' });
-			// Restore what user typed (don't lose their first letter!)
 			inputText = typedText;
-			// Don't return - let the rest of handleInput process the text
 		}
-
-		// Don't auto-add on comma/period anymore - only on Enter or Paste
-		// Just let user type freely
 	}
 
 	async function handlePaste() {
-		// Wait a bit for paste to complete, then auto-add items
 		setTimeout(async () => {
 			if (inputText.trim()) {
-				console.log('📋 Paste detected, auto-adding items');
-
-				// Parse pasted text with smart separators
 				const itemsToAdd = inputText
-					.split(/[,\.]\s+/) // Split by comma/period + space(s)
+					.split(/[,\.]\s+/)
 					.map((s) => s.trim())
 					.filter((s) => s.length > 0);
 
-				console.log('📋 Parsed items from paste:', itemsToAdd);
-
-				// Add each item (or reactivate if done)
 				for (const itemText of itemsToAdd) {
 					await addOrReactivateItem(itemText);
 				}
 
-				// Clear input after paste
 				inputText = '';
 			}
 
@@ -303,8 +218,6 @@
 	async function handleCheckboxChange(id: string) {
 		await toggleItemDone(id);
 		dispatch({ type: 'ITEM_TOGGLED', id });
-
-		// Check if all items are now done
 		checkAndDispatchAllDone();
 	}
 
@@ -330,32 +243,24 @@
 		const deltaX = touch.clientX - touchStartX;
 		const deltaY = touch.clientY - touchStartY;
 
-		// Check if it's a horizontal swipe (not vertical)
 		if (Math.abs(deltaY) > Math.abs(deltaX)) {
 			currentSwipeId = null;
 			swipeProgress = { ...swipeProgress, [itemId]: 0 };
 			return;
 		}
 
-		// Get the element width
 		const element = event.currentTarget as HTMLElement;
 		const elementWidth = element.offsetWidth;
 
-		// Calculate swipe percentage (only positive/right swipes)
 		const swipePercentage = Math.max(0, (deltaX / elementWidth) * 100);
 
-		// Update visual progress (cap at 100%)
 		swipeProgress = { ...swipeProgress, [itemId]: Math.min(swipePercentage, 100) };
 
-		// Check if swiped 20% or more of the element width from left to right
 		if (swipePercentage >= 20) {
-			// Mark as done
 			const item = items.find((i: ShoppingItem) => i.id === itemId);
 			if (item && !item.done) {
 				await toggleItemDone(itemId);
 				dispatch({ type: 'ITEM_TOGGLED', id: itemId });
-
-				// Check if all items are now done
 				checkAndDispatchAllDone();
 			}
 			currentSwipeId = null;
@@ -365,14 +270,12 @@
 
 	function handleTouchEnd() {
 		if (currentSwipeId) {
-			// Reset swipe progress for this item
 			swipeProgress = { ...swipeProgress, [currentSwipeId]: 0 };
 		}
 		currentSwipeId = null;
 	}
 
 	async function shareList() {
-		// Prepare the list text - simple comma-separated (like SMS)
 		const listText = items.map((item: ShoppingItem) => item.text).join(', ');
 
 		const shareData = {
@@ -382,15 +285,12 @@
 		try {
 			if (navigator.share) {
 				await navigator.share(shareData);
-				console.log('✅ List shared successfully');
 			} else {
-				// Fallback: copy to clipboard
 				await navigator.clipboard.writeText(listText);
-				console.log('📋 List copied to clipboard');
 				alert('List copied to clipboard!');
 			}
 		} catch (err) {
-			console.error('❌ Error sharing:', err);
+			console.error('Error sharing:', err);
 		}
 	}
 </script>
@@ -434,7 +334,7 @@
 			</button>
 		</div>
 
-		<!-- Input Textarea with hidden form for iOS support -->
+		<!-- Input -->
 		<form
 			onsubmit={handleFormSubmit}
 			class="sticky top-0 z-10 mb-6 bg-white dark:bg-[#0F0F0F] {isScrolled ? 'py-2' : 'py-0'}"
@@ -455,11 +355,10 @@
 				autocapitalize="off"
 				spellcheck="false"
 			></textarea>
-			<!-- Hidden submit button for iOS keyboard "Done" button -->
 			<button type="submit" class="hidden" tabindex="-1" aria-hidden="true">Submit</button>
 		</form>
 
-		<!-- Messages (Done / Archive hint) -->
+		<!-- Messages -->
 		{#if appState.type === 'ALL_DONE' || appState.type === 'ARCHIVED_AVAILABLE'}
 			<div class="relative mb-4 min-h-[32px]">
 				<div
@@ -517,7 +416,6 @@
 							}
 						}}
 					>
-						<!-- Hidden checkbox for accessibility/state management -->
 						<input
 							type="checkbox"
 							checked={item.done}
@@ -526,7 +424,6 @@
 							aria-hidden="true"
 						/>
 
-						<!-- Swipe "ink" line that grows with finger -->
 						{#if swipeProgress[item.id] > 0 && !item.done}
 							<div
 								class="pointer-events-none absolute top-1/2 left-1 h-[2px] bg-[#2A2A2A] dark:bg-[#D4D4D4]"
@@ -552,7 +449,6 @@
 </div>
 
 <style>
-	/* Custom scrollbar for textarea */
 	textarea::-webkit-scrollbar {
 		width: 8px;
 	}
@@ -571,7 +467,6 @@
 		background: #6b6b6b;
 	}
 
-	/* Override native focus ring (e.g., Safari blue outline) */
 	textarea:focus,
 	textarea:focus-visible {
 		outline: none;
@@ -579,14 +474,11 @@
 		box-shadow: 0 0 0 3px rgba(180, 170, 150, 0.5);
 	}
 
-	/* Dark mode - follows system preferences */
 	@media (prefers-color-scheme: dark) {
-		/* Main background */
 		:global(body) {
 			background-color: #0f0f0f;
 		}
 
-		/* Scrollbar dark mode */
 		textarea::-webkit-scrollbar-track {
 			background: #2a2a2a;
 		}
