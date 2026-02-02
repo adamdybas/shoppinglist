@@ -196,23 +196,8 @@
 		}
 	}
 
-	async function handlePaste() {
-		setTimeout(async () => {
-			if (inputText.trim()) {
-				const itemsToAdd = inputText
-					.split(/[,\.]\s+/)
-					.map((s) => s.trim())
-					.filter((s) => s.length > 0);
-
-				for (const itemText of itemsToAdd) {
-					await addOrReactivateItem(itemText);
-				}
-
-				inputText = '';
-			}
-
-			autoGrow();
-		}, 10);
+	function handlePaste() {
+		setTimeout(() => autoGrow(), 10);
 	}
 
 	async function handleCheckboxChange(id: string) {
