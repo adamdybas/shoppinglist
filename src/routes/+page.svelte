@@ -147,7 +147,10 @@
 	}
 
 	async function handleKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
+		// Skip if IME is composing (autocomplete, Chinese/Japanese input, etc.)
+		if (event.isComposing) return;
+
+		if (event.key === 'Enter' && !event.shiftKey) {
 			event.preventDefault();
 
 			if (inputText.trim()) {
@@ -161,6 +164,7 @@
 				}
 
 				inputText = '';
+				autoGrow();
 			}
 		}
 	}
