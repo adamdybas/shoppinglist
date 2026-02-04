@@ -1,36 +1,33 @@
 # Shopping List Today 📝
 
-A simple yet powerful shopping list app that feels like digital pen and paper. No login required, no backend needed - everything is stored locally on your device.
+A simple shopping list app that feels like digital pen and paper. No login required, no backend needed - everything is stored locally on your device.
 
 ## Features ✨
 
-- **Input as Source of Truth**: The textarea is your master list - items never disappear from it
-- **Simple Adding**: Type items separated by commas or newlines, then press Enter to add them to the list below
-- **Auto-growing Input**: The input grows as you type (up to 50% of screen height)
-- **Smart List Management**:
-  - New items appear at the top
-  - Items persist in IndexedDB (survives page refreshes)
-  - No duplicates - same items won't be added twice
-  - Checkbox to mark items as done (strike-through styling)
-  - Swipe gesture: Swipe 40-60% from left to right to mark items done (mobile)
-- **Archive System - "Paper in Pocket"** 🗂️:
-  - When ALL items are checked → list automatically archives
-  - Shows hint: "Click to restore previous list and add items to it, or type to create a new one"
-  - Only ONE archived list stored (like a paper list in your pocket!)
-  - Each new completion overwrites the previous archive
-  - Click hint to restore and continue adding to old list
-  - Start typing to create a fresh list
-- **Persistent Input**: Text stays in the textarea - delete manually if you want to edit
-- **One-Way Flow**: Deleting from textarea doesn't affect items already in the list
-- **No Deletion from List**: Items stay in your list (by design - like pen and paper!)
-- **PWA Ready**: Install on your phone for an app-like experience
+- **Quick Adding**: Type items separated by `, ` or `. ` (comma/dot + space), press Enter
+- **Smart Duplicates**: Adding an existing item that's checked will uncheck it instead
+- **Touch Friendly**: Tap item to check/uncheck, or swipe right ~20% on mobile
+- **Auto-growing Input**: Input grows as you type (up to 50vh, or compact 80px when scrolled)
+- **Share List**: Share button to send your list via native share or copy to clipboard
+- **Archive System** 🗂️:
+  - When ALL items are checked → "all done" message appears
+  - Start typing to archive current list and begin a new one
+  - "Old list is still here" - click to restore archived list
+  - Only one archived list stored (like a paper in your pocket)
+- **Data Safety**:
+  - Items persist in IndexedDB
+  - Automatic localStorage backup (restores if IndexedDB gets cleared)
+  - Requests persistent storage from browser
+- **PWA Ready**: Install on your phone for app-like experience
 - **Offline First**: Works without internet connection
+- **Dark Mode**: Respects system preference
 
 ## Tech Stack 🛠️
 
 - **SvelteKit** - Fast, modern web framework
-- **Tailwind CSS** - Beautiful, responsive design
-- **IndexedDB** - Local browser storage
+- **Tailwind CSS** - Utility-first styling
+- **IndexedDB** - Primary local storage
+- **localStorage** - Backup storage
 - **Vercel** - Deployment platform
 
 ## Development 🚀
@@ -51,30 +48,24 @@ yarn preview
 
 ## Deployment 📦
 
-This app is configured to deploy on Vercel with the `@sveltejs/adapter-vercel` adapter.
+Configured for Vercel with `@sveltejs/adapter-vercel`.
 
-1. Push your code to GitHub
-2. Connect your repository to Vercel
-3. Deploy!
+When deploying updates, bump `CACHE_NAME` version in `static/service-worker.js` (e.g., `v3` → `v4`).
 
 ## Usage Tips 💡
 
-**The Perfect SMS List Flow:**
-1. Receive shopping list via SMS (e.g., "Mleko, Jajka, Chleb, Masło")
-2. Copy the text
-3. Paste into the textarea
-4. Paste event automatically adds items OR press Enter to add manually
-5. The textarea is your source of truth - text stays there
-6. Edit anytime - new items will be added when you press Enter
-7. No duplicates - same items won't be added twice
+**Quick list from SMS/message:**
+1. Copy list like "Mleko, Chleb, Masło"
+2. Paste into input
+3. Press Enter - items split by `, ` or `. `
 
-**Other Features:**
-- Textarea grows automatically (up to 50% of screen)
-- Items separated by commas or newlines
-- Deleting from textarea doesn't affect the list
-- On mobile, swipe right on an item to mark it done
-- All data is stored locally - your list is private and secure
-- Install as a PWA for the best mobile experience
+**On mobile:**
+- Swipe right on item to check it off
+- Tap anywhere on item to toggle
+
+**Privacy:**
+- All data stored locally on your device
+- No accounts, no servers, no tracking
 
 ## License
 
