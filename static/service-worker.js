@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shopping-list-v2'; // Updated version!
+const CACHE_NAME = 'shopping-list-v3';
 const urlsToCache = ['/', '/manifest.json'];
 
 // Install event - cache essential files
@@ -31,20 +31,16 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
 	event.respondWith(
 		caches.match(event.request).then((response) => {
-			// Cache hit - return response
 			if (response) {
 				return response;
 			}
 
 			return fetch(event.request).then((response) => {
-				// Don't cache non-successful responses
 				if (!response || response.status !== 200 || response.type === 'error') {
 					return response;
 				}
 
-				// Clone the response
 				const responseToCache = response.clone();
-
 				caches.open(CACHE_NAME).then((cache) => {
 					cache.put(event.request, responseToCache);
 				});
