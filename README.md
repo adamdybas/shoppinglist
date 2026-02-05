@@ -1,14 +1,23 @@
 # Shopping List Today 📝
 
+**Live app → https://shoppinglist.today**
+
 A simple shopping list app that feels like digital pen and paper. No login required, no backend needed - everything is stored locally on your device.
 
+*A deliberately minimal PWA exploring how much clarity and usability can be achieved with almost no features.*
+
 ## Features ✨
+
+### Interaction & UX
 
 - **Quick Adding**: Type items separated by `, ` or `. ` (comma/dot + space), press Enter
 - **Smart Duplicates**: Adding an existing item that's checked will uncheck it instead
 - **Touch Friendly**: Tap item to check/uncheck, or swipe right ~20% on mobile
 - **Auto-growing Input**: Input grows as you type (up to 50vh, or compact 80px when scrolled)
 - **Share List**: Share button to send your list via native share or copy to clipboard
+
+### Behavior & Data
+
 - **Archive System** 🗂️:
   - When ALL items are checked → "all done" message appears
   - Start typing to archive current list and begin a new one
@@ -26,7 +35,7 @@ A simple shopping list app that feels like digital pen and paper. No login requi
 
 - **SvelteKit** - Fast, modern web framework
 - **Tailwind CSS** - Utility-first styling
-- **IndexedDB** - Primary local storage
+- **IndexedDB** - Primary local-first storage
 - **localStorage** - Backup storage
 - **Vercel** - Deployment platform
 
@@ -46,7 +55,7 @@ yarn build
 yarn preview
 ```
 
-## Deployment 📦
+## Deployment 📦 (maintainer notes)
 
 Configured for Vercel with `@sveltejs/adapter-vercel`.
 
