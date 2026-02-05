@@ -64,7 +64,7 @@ When deploying updates, bump `CACHE_NAME` version in `static/service-worker.js` 
 ## Usage Tips 💡
 
 **Quick list from SMS/message:**
-1. Copy list like "Mleko, Chleb, Masło"
+1. Copy list like "Milk, Bread, Butter"
 2. Paste into input
 3. Press Enter - items split by `, ` or `. `
 
