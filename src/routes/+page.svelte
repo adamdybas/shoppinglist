@@ -38,11 +38,9 @@
 		appState.type === 'ACTIVE' && appState.items.some((i: ShoppingItem) => i.done)
 	);
 
-	let visibleItems = $derived.by(() => {
-		if (appState.type === 'ALL_DONE') return displayItems;
-		if (hideDone) return displayItems.filter((i: ShoppingItem) => !i.done);
-		return displayItems;
-	});
+	let shouldCollapseDone = $derived(
+		hideDone && appState.type === 'ACTIVE'
+	);
 
 	$effect(() => {
 		if (listFadeTimeout) {
@@ -106,6 +104,8 @@
 	}
 
 	async function restoreArchivedList() {
+		hideDone = false;
+
 		if (textareaElement) {
 			textareaElement.focus();
 		}
@@ -335,7 +335,7 @@
 		</div>
 
 		<!-- Input -->
-		<div class="sticky top-0 z-10 mb-6 bg-white dark:bg-[#0F0F0F] {isScrolled ? 'py-2' : 'py-0'}">
+		<div class="sticky top-0 z-10 mb-2 bg-white dark:bg-[#0F0F0F] {isScrolled ? 'py-2' : 'py-0'}">
 			<form onsubmit={handleFormSubmit}>
 				<textarea
 					bind:this={textareaElement}
@@ -355,16 +355,17 @@
 				></textarea>
 				<button type="submit" class="hidden" tabindex="-1" aria-hidden="true">Submit</button>
 			</form>
-			{#if hasDoneItems}
-				<div class="flex justify-end pt-1" transition:fade={{ duration: 200 }}>
+			<div class="hide-toggle-row {hasDoneItems ? 'hide-toggle-visible' : 'hide-toggle-hidden'}">
+				<div class="flex justify-end pt-1">
 					<button
 						onclick={() => (hideDone = !hideDone)}
+						tabindex={hasDoneItems ? 0 : -1}
 						class="text-sm text-[#6B6B6B] transition-colors hover:text-[#2A2A2A] dark:text-[#9A9A9A] dark:hover:text-[#D4D4D4]"
 					>
 						{hideDone ? 'Show' : 'Hide'} what's done
 					</button>
 				</div>
-			{/if}
+			</div>
 		</div>
 
 		<!-- Messages -->
@@ -407,13 +408,13 @@
 				? 'opacity-0'
 				: 'opacity-100'}"
 		>
-		{#if visibleItems.length > 0}
-			{#each visibleItems as item (item.id)}
+		{#if displayItems.length > 0}
+			{#each displayItems as item (item.id)}
 					<div
-						transition:fade={{ duration: 800 }}
-						class="relative cursor-pointer px-1 py-3"
+						transition:fade={{ duration: 530 }}
+						class="item-row relative cursor-pointer px-1 {shouldCollapseDone && item.done ? 'item-collapsed' : 'item-expanded'}"
 						role="button"
-						tabindex="0"
+						tabindex={shouldCollapseDone && item.done ? -1 : 0}
 						ontouchstart={createTouchStartHandler(item.id)}
 						ontouchmove={createTouchMoveHandler(item.id)}
 						ontouchend={handleTouchEnd}
@@ -458,6 +459,42 @@
 </div>
 
 <style>
+	.hide-toggle-row {
+		overflow: hidden;
+		transition: max-height 0.3s ease, opacity 0.25s ease;
+	}
+
+	.hide-toggle-visible {
+		max-height: 40px;
+		opacity: 1;
+	}
+
+	.hide-toggle-hidden {
+		max-height: 0;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.item-row {
+		transition: max-height 0.35s ease, opacity 0.3s ease, padding 0.35s ease;
+		overflow: hidden;
+	}
+
+	.item-expanded {
+		max-height: 120px;
+		opacity: 1;
+		padding-top: 0.75rem;
+		padding-bottom: 0.75rem;
+	}
+
+	.item-collapsed {
+		max-height: 0;
+		opacity: 0;
+		padding-top: 0;
+		padding-bottom: 0;
+		pointer-events: none;
+	}
+
 	textarea::-webkit-scrollbar {
 		width: 8px;
 	}
