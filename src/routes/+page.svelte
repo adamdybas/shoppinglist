@@ -279,7 +279,8 @@
 	}
 
 	async function shareList() {
-		const listText = items.map((item: ShoppingItem) => item.text).join(', ');
+		const visibleItems = hideDone ? items.filter((item: ShoppingItem) => !item.done) : items;
+		const listText = visibleItems.map((item: ShoppingItem) => item.text).join(', ');
 
 		const shareData = {
 			text: listText
