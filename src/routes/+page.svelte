@@ -32,7 +32,9 @@
 	let swipeProgress = $state<Record<string, number>>({});
 	let addedItemsSet = $state(new Set<string>());
 	let isScrolled = $state(false);
-	let hideDone = $state(false);
+	let hideDone = $state(
+		typeof localStorage !== 'undefined' && localStorage.getItem('hideDone') === 'true'
+	);
 
 	let hasDoneItems = $derived(
 		appState.type === 'ACTIVE' && appState.items.some((i: ShoppingItem) => i.done)
@@ -105,6 +107,7 @@
 
 	async function restoreArchivedList() {
 		hideDone = false;
+		localStorage.setItem('hideDone', 'false');
 
 		if (textareaElement) {
 			textareaElement.focus();
@@ -358,7 +361,7 @@
 			<div class="hide-toggle-row {hasDoneItems ? 'hide-toggle-visible' : 'hide-toggle-hidden'}">
 				<div class="flex justify-end pt-1">
 					<button
-						onclick={() => (hideDone = !hideDone)}
+						onclick={() => { hideDone = !hideDone; localStorage.setItem('hideDone', String(hideDone)); }}
 						tabindex={hasDoneItems ? 0 : -1}
 						class="text-sm text-[#6B6B6B] transition-colors hover:text-[#2A2A2A] dark:text-[#9A9A9A] dark:hover:text-[#D4D4D4]"
 					>
