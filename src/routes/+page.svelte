@@ -32,6 +32,17 @@
 	let swipeProgress = $state<Record<string, number>>({});
 	let addedItemsSet = $state(new Set<string>());
 	let isScrolled = $state(false);
+	let hideDone = $state(false);
+
+	let hasDoneItems = $derived(
+		appState.type === 'ACTIVE' && appState.items.some((i: ShoppingItem) => i.done)
+	);
+
+	let visibleItems = $derived.by(() => {
+		if (appState.type === 'ALL_DONE') return displayItems;
+		if (hideDone) return displayItems.filter((i: ShoppingItem) => !i.done);
+		return displayItems;
+	});
 
 	$effect(() => {
 		if (listFadeTimeout) {
@@ -324,28 +335,37 @@
 		</div>
 
 		<!-- Input -->
-		<form
-			onsubmit={handleFormSubmit}
-			class="sticky top-0 z-10 mb-6 bg-white dark:bg-[#0F0F0F] {isScrolled ? 'py-2' : 'py-0'}"
-		>
-			<textarea
-				bind:this={textareaElement}
-				bind:value={inputText}
-				oninput={handleInput}
-				onkeydown={handleKeydown}
-				onpaste={handlePaste}
-				placeholder="Type items ..."
-				class="w-full resize-none rounded-lg border border-[#B8B1A3] bg-white px-4 py-3 text-[#2A2A2A] placeholder-[#6B6B6B] transition-all focus:border-[rgba(180,170,150,0.5)] focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] focus:outline-none focus-visible:outline-none dark:border-[#6E6A63] dark:bg-[#1a1a1a] dark:text-[#D4D4D4] dark:placeholder-[#9A9A9A] dark:focus:border-[rgba(180,170,150,0.5)] dark:focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] {isScrolled
-					? 'overflow-y-auto'
-					: 'overflow-hidden'}"
-				rows="1"
-				style="min-height: 60px; font-size: 24px; line-height: 1.4;"
-				autocorrect="off"
-				autocapitalize="off"
-				spellcheck="false"
-			></textarea>
-			<button type="submit" class="hidden" tabindex="-1" aria-hidden="true">Submit</button>
-		</form>
+		<div class="sticky top-0 z-10 mb-6 bg-white dark:bg-[#0F0F0F] {isScrolled ? 'py-2' : 'py-0'}">
+			<form onsubmit={handleFormSubmit}>
+				<textarea
+					bind:this={textareaElement}
+					bind:value={inputText}
+					oninput={handleInput}
+					onkeydown={handleKeydown}
+					onpaste={handlePaste}
+					placeholder="Type items ..."
+					class="w-full resize-none rounded-lg border border-[#B8B1A3] bg-white px-4 py-3 text-[#2A2A2A] placeholder-[#6B6B6B] transition-all focus:border-[rgba(180,170,150,0.5)] focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] focus:outline-none focus-visible:outline-none dark:border-[#6E6A63] dark:bg-[#1a1a1a] dark:text-[#D4D4D4] dark:placeholder-[#9A9A9A] dark:focus:border-[rgba(180,170,150,0.5)] dark:focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] {isScrolled
+						? 'overflow-y-auto'
+						: 'overflow-hidden'}"
+					rows="1"
+					style="min-height: 60px; font-size: 24px; line-height: 1.4;"
+					autocorrect="off"
+					autocapitalize="off"
+					spellcheck="false"
+				></textarea>
+				<button type="submit" class="hidden" tabindex="-1" aria-hidden="true">Submit</button>
+			</form>
+			{#if hasDoneItems}
+				<div class="flex justify-end pt-1" transition:fade={{ duration: 200 }}>
+					<button
+						onclick={() => (hideDone = !hideDone)}
+						class="text-sm text-[#6B6B6B] transition-colors hover:text-[#2A2A2A] dark:text-[#9A9A9A] dark:hover:text-[#D4D4D4]"
+					>
+						{hideDone ? 'Show' : 'Hide'} what's done
+					</button>
+				</div>
+			{/if}
+		</div>
 
 		<!-- Messages -->
 		{#if appState.type === 'ALL_DONE' || appState.type === 'ARCHIVED_AVAILABLE'}
@@ -387,8 +407,8 @@
 				? 'opacity-0'
 				: 'opacity-100'}"
 		>
-			{#if displayItems.length > 0}
-				{#each displayItems as item (item.id)}
+		{#if visibleItems.length > 0}
+			{#each visibleItems as item (item.id)}
 					<div
 						transition:fade={{ duration: 800 }}
 						class="relative cursor-pointer px-1 py-3"
