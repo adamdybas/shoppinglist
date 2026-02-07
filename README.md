@@ -14,6 +14,7 @@ A simple shopping list app that feels like digital pen and paper. No login requi
 - **Smart Duplicates**: Adding an existing item that's checked will uncheck it instead
 - **Touch Friendly**: Tap item to check/uncheck, or swipe right ~20% on mobile
 - **Auto-growing Input**: Input grows as you type (up to 50vh, or compact 80px when scrolled)
+- **Hide/Show Done**: When items are checked, a toggle appears to hide/show completed items (smooth collapse animation)
 - **Share List**: Share button to send your list via native share or copy to clipboard
 
 ### Behavior & Data
