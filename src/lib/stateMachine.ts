@@ -81,7 +81,6 @@ export function transition(state: AppState, event: AppEvent): AppState {
 			break;
 	}
 
-	console.warn('Unhandled transition:', state.type, '+', event.type);
 	return state;
 }
 

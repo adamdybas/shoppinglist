@@ -117,8 +117,7 @@ export async function getAllItems(): Promise<ShoppingItem[]> {
 			if (items.length === 0) {
 				const backup = getBackup();
 				if (backup && backup.length > 0) {
-					console.log('Restoring items from localStorage backup');
-					// Restore items to IndexedDB
+				// Restore items to IndexedDB
 					for (const item of backup) {
 						await restoreItem(item);
 					}
@@ -174,7 +173,7 @@ export async function addItem(text: string): Promise<ShoppingItem> {
 
 export async function updateItem(id: string, updates: Partial<ShoppingItem>): Promise<void> {
 	const db = await initDB();
-	return new Promise(async (resolve, reject) => {
+	return new Promise((resolve, reject) => {
 		const transaction = db.transaction(STORE_NAME, 'readwrite');
 		const store = transaction.objectStore(STORE_NAME);
 		const getRequest = store.get(id);
@@ -196,7 +195,7 @@ export async function updateItem(id: string, updates: Partial<ShoppingItem>): Pr
 
 export async function toggleItemDone(id: string): Promise<void> {
 	const db = await initDB();
-	return new Promise(async (resolve, reject) => {
+	return new Promise((resolve, reject) => {
 		const transaction = db.transaction(STORE_NAME, 'readwrite');
 		const store = transaction.objectStore(STORE_NAME);
 		const getRequest = store.get(id);
@@ -258,8 +257,7 @@ export async function getArchivedList(): Promise<ArchivedList | null> {
 			if (!archive) {
 				const backup = getArchiveBackup();
 				if (backup) {
-					console.log('Restoring archive from localStorage backup');
-					await archiveCurrentList(backup.items);
+						await archiveCurrentList(backup.items);
 					archive = backup;
 				}
 			}

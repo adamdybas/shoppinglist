@@ -291,7 +291,6 @@
 				await navigator.share(shareData);
 			} else {
 				await navigator.clipboard.writeText(listText);
-				alert('List copied to clipboard!');
 			}
 		} catch (err) {
 			console.error('Error sharing:', err);
