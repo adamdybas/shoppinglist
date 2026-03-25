@@ -8,24 +8,10 @@
 	onMount(() => {
 		const splash = document.getElementById('pwa-splash');
 		if (splash) {
-			const teardown = () => splash.remove();
-			const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-			if (reducedMotion) {
-				teardown();
-			} else {
-				const fallbackMs = 600;
-				const tid = window.setTimeout(teardown, fallbackMs);
-				splash.addEventListener(
-					'transitionend',
-					(e) => {
-						if (e.target !== splash) return;
-						window.clearTimeout(tid);
-						teardown();
-					},
-					{ once: true }
-				);
-				requestAnimationFrame(() => splash.classList.add('pwa-splash--hide'));
-			}
+			/* Drop overlay in one step after the next paint so we never fade to transparent over the UI */
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => splash.remove());
+			});
 		}
 		injectAnalytics();
 		if ('serviceWorker' in navigator) {
