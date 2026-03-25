@@ -22,6 +22,7 @@
 
 <svelte:head>
 	<link rel="icon" href="/icon.svg" />
+	<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 	<link rel="manifest" href="/manifest.json" />
 	<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
 	<meta name="theme-color" content="#0F0F0F" media="(prefers-color-scheme: dark)" />
