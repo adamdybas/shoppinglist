@@ -1,10 +1,32 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" fill="white" rx="64"/>
-  <!-- Linie z różnymi grubościami - środkowa grubsza (jak nierówność długopisu) -->
-  <path d="M160 160h192" stroke="#333" stroke-width="24" stroke-linecap="round"/>
-  <path d="M160 240h192" stroke="#333" stroke-width="28" stroke-linecap="round"/>
-  <path d="M160 320h128" stroke="#333" stroke-width="24" stroke-linecap="round"/>
-  <circle cx="120" cy="160" r="12" fill="#333"/>
-  <circle cx="120" cy="240" r="12" fill="#333"/>
-  <circle cx="120" cy="320" r="12" fill="#333"/>
+	<style>
+		.mark-bg {
+			fill: #ffffff;
+		}
+		.mark-line {
+			fill: none;
+			stroke: #333333;
+		}
+		.mark-bullet {
+			fill: #333333;
+		}
+		@media (prefers-color-scheme: dark) {
+			.mark-bg {
+				fill: #1a1a1a;
+			}
+			.mark-line {
+				stroke: #d4d4d4;
+			}
+			.mark-bullet {
+				fill: #d4d4d4;
+			}
+		}
+	</style>
+	<rect class="mark-bg" width="512" height="512" rx="64" />
+	<path class="mark-line" d="M160 160h192" stroke-width="24" stroke-linecap="round" />
+	<path class="mark-line" d="M160 240h192" stroke-width="28" stroke-linecap="round" />
+	<path class="mark-line" d="M160 320h128" stroke-width="24" stroke-linecap="round" />
+	<circle class="mark-bullet" cx="120" cy="160" r="12" />
+	<circle class="mark-bullet" cx="120" cy="240" r="12" />
+	<circle class="mark-bullet" cx="120" cy="320" r="12" />
 </svg>
