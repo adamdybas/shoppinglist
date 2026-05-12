@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shopping-list-v5';
+const CACHE_NAME = 'shopping-list-v6';
 const urlsToCache = ['/', '/manifest.json'];
 
 // Install event - cache essential files
