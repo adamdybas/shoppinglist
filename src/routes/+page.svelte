@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
+	import ArchiveStatusMessage from '$lib/components/ArchiveStatusMessage.svelte';
+	import ListInput from '$lib/components/ListInput.svelte';
+	import ShoppingListItem from '$lib/components/ShoppingListItem.svelte';
 	import {
 		getAllItems,
 		addItem,
@@ -10,7 +12,9 @@
 		clearAllItems,
 		type ShoppingItem
 	} from '$lib/db';
+	import { parseItemsFromInput, shareList } from '$lib/list';
 	import { transition, checkAllDone, type AppState, type AppEvent } from '$lib/stateMachine';
+	import { getSwipeProgress, type SwipeStart } from '$lib/swipe';
 
 	let appState = $state<AppState>({ type: 'LOADING' });
 	let displayItems = $state<ShoppingItem[]>([]);
@@ -25,9 +29,8 @@
 	);
 
 	let inputText = $state('');
-	let textareaElement: HTMLTextAreaElement;
-	let touchStartX = 0;
-	let touchStartY = 0;
+	let textareaElement = $state<HTMLTextAreaElement>();
+	let swipeStart: SwipeStart = { x: 0, y: 0 };
 	let currentSwipeId: string | null = null;
 	let swipeProgress = $state<Record<string, number>>({});
 	let addedItemsSet = $state(new Set<string>());
@@ -40,9 +43,7 @@
 		appState.type === 'ACTIVE' && appState.items.some((i: ShoppingItem) => i.done)
 	);
 
-	let shouldCollapseDone = $derived(
-		hideDone && appState.type === 'ACTIVE'
-	);
+	let shouldCollapseDone = $derived(hideDone && appState.type === 'ACTIVE');
 
 	$effect(() => {
 		if (listFadeTimeout) {
@@ -112,7 +113,7 @@
 		if (textareaElement) {
 			textareaElement.focus();
 		}
-		
+
 		const archived = await getArchivedList();
 		if (!archived) return;
 
@@ -143,12 +144,10 @@
 
 	async function addOrReactivateItem(itemText: string) {
 		const lowerText = itemText.toLowerCase();
-		
+
 		if (addedItemsSet.has(lowerText)) {
-			const existingItem = items.find(
-				(i: ShoppingItem) => i.text.toLowerCase() === lowerText
-			);
-			
+			const existingItem = items.find((i: ShoppingItem) => i.text.toLowerCase() === lowerText);
+
 			if (existingItem && existingItem.done) {
 				await toggleItemDone(existingItem.id);
 				dispatch({ type: 'ITEM_TOGGLED', id: existingItem.id });
@@ -168,10 +167,7 @@
 			event.preventDefault();
 
 			if (inputText.trim()) {
-				const itemsToAdd = inputText
-					.split(/[,\.]\s+/)
-					.map((s) => s.trim())
-					.filter((s) => s.length > 0);
+				const itemsToAdd = parseItemsFromInput(inputText);
 
 				for (const itemText of itemsToAdd) {
 					await addOrReactivateItem(itemText);
@@ -187,10 +183,7 @@
 		e.preventDefault();
 
 		if (inputText.trim()) {
-			const itemsToAdd = inputText
-				.split(/[,\.]\s+/)
-				.map((s) => s.trim())
-				.filter((s) => s.length > 0);
+			const itemsToAdd = parseItemsFromInput(inputText);
 
 			(async () => {
 				for (const itemText of itemsToAdd) {
@@ -226,40 +219,30 @@
 
 	function handleTouchStart(event: TouchEvent, itemId: string) {
 		const touch = event.touches[0];
-		touchStartX = touch.clientX;
-		touchStartY = touch.clientY;
+		swipeStart = { x: touch.clientX, y: touch.clientY };
 		currentSwipeId = itemId;
-	}
-
-	function createTouchStartHandler(itemId: string) {
-		return (e: TouchEvent) => handleTouchStart(e, itemId);
-	}
-
-	function createTouchMoveHandler(itemId: string) {
-		return (e: TouchEvent) => handleTouchMove(e, itemId);
 	}
 
 	async function handleTouchMove(event: TouchEvent, itemId: string) {
 		if (currentSwipeId !== itemId) return;
 
 		const touch = event.touches[0];
-		const deltaX = touch.clientX - touchStartX;
-		const deltaY = touch.clientY - touchStartY;
+		const element = event.currentTarget as HTMLElement;
+		const swipe = getSwipeProgress(
+			swipeStart,
+			{ x: touch.clientX, y: touch.clientY },
+			element.offsetWidth
+		);
 
-		if (Math.abs(deltaY) > Math.abs(deltaX)) {
+		if (swipe.cancelled) {
 			currentSwipeId = null;
 			swipeProgress = { ...swipeProgress, [itemId]: 0 };
 			return;
 		}
 
-		const element = event.currentTarget as HTMLElement;
-		const elementWidth = element.offsetWidth;
+		swipeProgress = { ...swipeProgress, [itemId]: swipe.progress };
 
-		const swipePercentage = Math.max(0, (deltaX / elementWidth) * 100);
-
-		swipeProgress = { ...swipeProgress, [itemId]: Math.min(swipePercentage, 100) };
-
-		if (swipePercentage >= 20) {
+		if (swipe.thresholdReached) {
 			const item = items.find((i: ShoppingItem) => i.id === itemId);
 			if (item && !item.done) {
 				await toggleItemDone(itemId);
@@ -277,25 +260,6 @@
 		}
 		currentSwipeId = null;
 	}
-
-	async function shareList() {
-		const visibleItems = hideDone ? items.filter((item: ShoppingItem) => !item.done) : items;
-		const listText = visibleItems.map((item: ShoppingItem) => item.text).join(', ');
-
-		const shareData = {
-			text: listText
-		};
-
-		try {
-			if (navigator.share) {
-				await navigator.share(shareData);
-			} else {
-				await navigator.clipboard.writeText(listText);
-			}
-		} catch (err) {
-			console.error('Error sharing:', err);
-		}
-	}
 </script>
 
 <svelte:head>
@@ -310,7 +274,7 @@
 		<div class="mb-6 flex items-center justify-between">
 			<h1 class="text-3xl font-semibold text-[#2A2A2A] dark:text-[#D4D4D4]">Shopping List</h1>
 			<button
-				onclick={shareList}
+				onclick={() => void shareList(items, hideDone)}
 				class="p-2 text-[#6B6B6B] transition-colors hover:text-[#2A2A2A] dark:text-[#9A9A9A] dark:hover:text-[#D4D4D4] {items.length >
 				0
 					? ''
@@ -338,72 +302,24 @@
 		</div>
 
 		<!-- Input -->
-		<div class="sticky top-0 z-10 mb-2 bg-white dark:bg-[#0F0F0F] {isScrolled ? 'py-2' : 'py-0'}">
-			<form onsubmit={handleFormSubmit}>
-				<textarea
-					bind:this={textareaElement}
-					bind:value={inputText}
-					oninput={handleInput}
-					onkeydown={handleKeydown}
-					onpaste={handlePaste}
-					placeholder="Type items ..."
-					class="w-full resize-none rounded-lg border border-[#B8B1A3] bg-white px-4 py-3 text-[#2A2A2A] placeholder-[#6B6B6B] transition-all focus:border-[rgba(180,170,150,0.5)] focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] focus:outline-none focus-visible:outline-none dark:border-[#6E6A63] dark:bg-[#1a1a1a] dark:text-[#D4D4D4] dark:placeholder-[#9A9A9A] dark:focus:border-[rgba(180,170,150,0.5)] dark:focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] {isScrolled
-						? 'overflow-y-auto'
-						: 'overflow-hidden'}"
-					rows="1"
-					style="min-height: 60px; font-size: 24px; line-height: 1.4;"
-					autocorrect="off"
-					autocapitalize="off"
-					spellcheck="false"
-				></textarea>
-				<button type="submit" class="hidden" tabindex="-1" aria-hidden="true">Submit</button>
-			</form>
-			<div class="hide-toggle-row {hasDoneItems ? 'hide-toggle-visible' : 'hide-toggle-hidden'}">
-				<div class="flex justify-end pt-1">
-					<button
-						onclick={() => { hideDone = !hideDone; localStorage.setItem('hideDone', String(hideDone)); }}
-						tabindex={hasDoneItems ? 0 : -1}
-						class="text-sm text-[#6B6B6B] transition-colors hover:text-[#2A2A2A] dark:text-[#9A9A9A] dark:hover:text-[#D4D4D4]"
-					>
-						{hideDone ? 'Show' : 'Hide'} what's done
-					</button>
-				</div>
-			</div>
-		</div>
+		<ListInput
+			bind:inputText
+			bind:textareaElement
+			{isScrolled}
+			{hasDoneItems}
+			{hideDone}
+			onInput={handleInput}
+			onKeydown={handleKeydown}
+			onPaste={handlePaste}
+			onSubmit={handleFormSubmit}
+			onToggleHideDone={() => {
+				hideDone = !hideDone;
+				localStorage.setItem('hideDone', String(hideDone));
+			}}
+		/>
 
 		<!-- Messages -->
-		{#if appState.type === 'ALL_DONE' || appState.type === 'ARCHIVED_AVAILABLE'}
-			<div class="relative mb-4 min-h-[32px]">
-				<div
-					class="absolute top-0 left-0 transition-opacity duration-200 {appState.type === 'ALL_DONE'
-						? 'opacity-100'
-						: 'pointer-events-none opacity-0'}"
-				>
-					<span
-						class="inline-block rounded bg-[#FFF4C2] px-2 py-1 text-base text-[#5A4A00] dark:bg-[#3A3420] dark:text-[#F3E6A1]"
-					>
-						— all done —
-					</span>
-				</div>
-				<div
-					class="absolute top-0 left-0 transition-opacity duration-200 {appState.type ===
-					'ARCHIVED_AVAILABLE'
-						? 'opacity-100'
-						: 'pointer-events-none opacity-0'}"
-				>
-					<span class="inline-block rounded bg-[#E8F0FF] px-2 py-1 dark:bg-[#1E2A3D]">
-						<button
-							onclick={restoreArchivedList}
-							tabindex="-1"
-							class="text-[#243A5E] underline transition-opacity hover:opacity-80 dark:text-[#C7D7FF]"
-						>
-							Old list is still here.
-						</button>
-						<span class="text-[#243A5E] dark:text-[#C7D7FF]"> Type to start a new one.</span>
-					</span>
-				</div>
-			</div>
-		{/if}
+		<ArchiveStatusMessage stateType={appState.type} onRestoreArchivedList={restoreArchivedList} />
 
 		<!-- Shopping List -->
 		<div
@@ -411,50 +327,17 @@
 				? 'opacity-0'
 				: 'opacity-100'}"
 		>
-		{#if displayItems.length > 0}
-			{#each displayItems as item (item.id)}
-					<div
-						transition:fade={{ duration: 530 }}
-						class="item-row relative cursor-pointer px-1 {shouldCollapseDone && item.done ? 'item-collapsed' : 'item-expanded'}"
-						role="button"
-						tabindex={shouldCollapseDone && item.done ? -1 : 0}
-						ontouchstart={createTouchStartHandler(item.id)}
-						ontouchmove={createTouchMoveHandler(item.id)}
-						ontouchend={handleTouchEnd}
-						onclick={() => handleCheckboxChange(item.id)}
-						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								handleCheckboxChange(item.id);
-							}
-						}}
-					>
-						<input
-							type="checkbox"
-							checked={item.done}
-							class="sr-only"
-							tabindex="-1"
-							aria-hidden="true"
-						/>
-
-						{#if swipeProgress[item.id] > 0 && !item.done}
-							<div
-								class="pointer-events-none absolute top-1/2 left-1 h-[2px] bg-[#2A2A2A] dark:bg-[#D4D4D4]"
-								style="width: {swipeProgress[
-									item.id
-								]}%; transform: translateY(-50%); transition: width 0.05s linear;"
-							></div>
-						{/if}
-
-						<span
-							class="relative block {item.done
-								? 'text-[#6B6B6B] line-through dark:text-[#9A9A9A]'
-								: 'text-[#2A2A2A] dark:text-[#F5F0E6]'}"
-							style="font-size: 21px; line-height: 1.4;"
-						>
-							{item.text}
-						</span>
-					</div>
+			{#if displayItems.length > 0}
+				{#each displayItems as item (item.id)}
+					<ShoppingListItem
+						{item}
+						collapsed={shouldCollapseDone && item.done}
+						swipeProgress={swipeProgress[item.id] ?? 0}
+						onToggle={handleCheckboxChange}
+						onTouchStart={handleTouchStart}
+						onTouchMove={handleTouchMove}
+						onTouchEnd={handleTouchEnd}
+					/>
 				{/each}
 			{/if}
 		</div>
@@ -462,82 +345,9 @@
 </div>
 
 <style>
-	.hide-toggle-row {
-		overflow: hidden;
-		transition: max-height 0.3s ease, opacity 0.25s ease;
-	}
-
-	.hide-toggle-visible {
-		max-height: 40px;
-		opacity: 1;
-	}
-
-	.hide-toggle-hidden {
-		max-height: 0;
-		opacity: 0;
-		pointer-events: none;
-	}
-
-	.item-row {
-		transition: max-height 0.35s ease, opacity 0.3s ease, padding 0.35s ease;
-		overflow: hidden;
-	}
-
-	.item-expanded {
-		max-height: 120px;
-		opacity: 1;
-		padding-top: 0.75rem;
-		padding-bottom: 0.75rem;
-	}
-
-	.item-collapsed {
-		max-height: 0;
-		opacity: 0;
-		padding-top: 0;
-		padding-bottom: 0;
-		pointer-events: none;
-	}
-
-	textarea::-webkit-scrollbar {
-		width: 8px;
-	}
-
-	textarea::-webkit-scrollbar-track {
-		background: #f1f1f1;
-		border-radius: 4px;
-	}
-
-	textarea::-webkit-scrollbar-thumb {
-		background: #9a9a9a;
-		border-radius: 4px;
-	}
-
-	textarea::-webkit-scrollbar-thumb:hover {
-		background: #6b6b6b;
-	}
-
-	textarea:focus,
-	textarea:focus-visible {
-		outline: none;
-		border-color: rgba(180, 170, 150, 0.5);
-		box-shadow: 0 0 0 3px rgba(180, 170, 150, 0.5);
-	}
-
 	@media (prefers-color-scheme: dark) {
 		:global(body) {
 			background-color: #0f0f0f;
-		}
-
-		textarea::-webkit-scrollbar-track {
-			background: #2a2a2a;
-		}
-
-		textarea::-webkit-scrollbar-thumb {
-			background: #6b6b6b;
-		}
-
-		textarea::-webkit-scrollbar-thumb:hover {
-			background: #9a9a9a;
 		}
 	}
 </style>

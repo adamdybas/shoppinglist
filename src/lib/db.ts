@@ -85,20 +85,20 @@ export async function initDB(): Promise<IDBDatabase> {
 			resolve(dbInstance);
 		};
 
-	request.onupgradeneeded = (event) => {
-		const db = (event.target as IDBOpenDBRequest).result;
-		
-		// Create items store
-		if (!db.objectStoreNames.contains(STORE_NAME)) {
-			const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-			store.createIndex('createdAt', 'createdAt', { unique: false });
-		}
-		
-		// Create archive store (for the single archived list)
-		if (!db.objectStoreNames.contains(ARCHIVE_STORE_NAME)) {
-			db.createObjectStore(ARCHIVE_STORE_NAME, { keyPath: 'id' });
-		}
-	};
+		request.onupgradeneeded = (event) => {
+			const db = (event.target as IDBOpenDBRequest).result;
+
+			// Create items store
+			if (!db.objectStoreNames.contains(STORE_NAME)) {
+				const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+				store.createIndex('createdAt', 'createdAt', { unique: false });
+			}
+
+			// Create archive store (for the single archived list)
+			if (!db.objectStoreNames.contains(ARCHIVE_STORE_NAME)) {
+				db.createObjectStore(ARCHIVE_STORE_NAME, { keyPath: 'id' });
+			}
+		};
 	});
 }
 
@@ -112,12 +112,12 @@ export async function getAllItems(): Promise<ShoppingItem[]> {
 		request.onerror = () => reject(request.error);
 		request.onsuccess = async () => {
 			let items = request.result as ShoppingItem[];
-			
+
 			// If IndexedDB is empty, try to restore from backup
 			if (items.length === 0) {
 				const backup = getBackup();
 				if (backup && backup.length > 0) {
-				// Restore items to IndexedDB
+					// Restore items to IndexedDB
 					for (const item of backup) {
 						await restoreItem(item);
 					}
@@ -127,7 +127,7 @@ export async function getAllItems(): Promise<ShoppingItem[]> {
 				// Update backup with current items
 				saveBackup(items);
 			}
-			
+
 			// Sort by createdAt descending (newest first)
 			items.sort((a, b) => b.createdAt - a.createdAt);
 			resolve(items);
@@ -252,16 +252,16 @@ export async function getArchivedList(): Promise<ArchivedList | null> {
 		request.onerror = () => reject(request.error);
 		request.onsuccess = async () => {
 			let archive = request.result as ArchivedList | null;
-			
+
 			// If IndexedDB archive is empty, try to restore from backup
 			if (!archive) {
 				const backup = getArchiveBackup();
 				if (backup) {
-						await archiveCurrentList(backup.items);
+					await archiveCurrentList(backup.items);
 					archive = backup;
 				}
 			}
-			
+
 			resolve(archive || null);
 		};
 	});

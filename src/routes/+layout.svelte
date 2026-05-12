@@ -29,7 +29,7 @@
 	<link rel="icon" href="/icon.svg" />
 	<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 	<link rel="manifest" href="/manifest.json" />
-	{#each appleStartupImages as image}
+	{#each appleStartupImages as image (image.file)}
 		<link
 			rel="apple-touch-startup-image"
 			media={`(prefers-color-scheme: light) and (device-width: ${image.width}px) and (device-height: ${image.height}px) and (-webkit-device-pixel-ratio: ${image.ratio}) and (orientation: portrait)`}

@@ -4,7 +4,7 @@
 
 A simple shopping list app that feels like digital pen and paper. No login required, no backend needed - everything is stored locally on your device.
 
-*A deliberately minimal PWA exploring how much clarity and usability can be achieved with almost no features.*
+_A deliberately minimal PWA exploring how much clarity and usability can be achieved with almost no features._
 
 ## Features ✨
 
@@ -65,15 +65,18 @@ When deploying updates, bump `CACHE_NAME` version in `static/service-worker.js` 
 ## Usage Tips 💡
 
 **Quick list from SMS/message:**
+
 1. Copy list like "Milk, Bread, Butter"
 2. Paste into input
 3. Press Enter - items split by `, ` or `. `
 
 **On mobile:**
+
 - Swipe right on item to check it off
 - Tap anywhere on item to toggle
 
 **Privacy:**
+
 - All data stored locally on your device
 - No accounts, no servers, no tracking
 
