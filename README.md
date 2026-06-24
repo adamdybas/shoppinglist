@@ -64,6 +64,14 @@ yarn preview
 
 This feature started with a very real household problem: my wife writes the shopping list on paper, I go shopping, and rewriting it into the app felt silly.
 
+<p align="center">
+  <img src="docs/case-study/paper-list.jpg" alt="Handwritten shopping list on grid paper, with two items crossed out" width="45%">
+  &nbsp;&nbsp;
+  <img src="docs/case-study/app-result.png" alt="The same list extracted into the app, crossed-out items skipped" width="45%">
+</p>
+
+<p align="center"><sub>A real paper list (left) extracted into the app (right). The two crossed-out items are skipped; "masło" written once appears once.</sub></p>
+
 The goal was not to turn the app into an AI product. The goal was smaller and more practical: take a quick photo of a paper list, extract the items with a vision LLM, and let the user review the result before adding anything.
 
 That real-world input immediately surfaced the kind of issues clean demos hide:
