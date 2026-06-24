@@ -170,9 +170,7 @@
 		}
 
 		inputText = '';
-		// Let the cleared value flush to the DOM before measuring, so the textarea
-		// shrinks back to its normal height instead of keeping the tall size.
-		await tick();
+		await tick(); // let the cleared value flush before measuring height
 		autoGrow();
 	}
 
@@ -191,9 +189,7 @@
 		void submitItems();
 	}
 
-	// When the list is fully checked off, adding/typing must first archive the
-	// completed list and transition out of ALL_DONE — otherwise ITEM_ADDED is
-	// ignored and the UI keeps showing the old list. Used by both typing and scan.
+	// In ALL_DONE, adding must archive the old list first or ITEM_ADDED is ignored.
 	async function ensureArchivedIfAllDone() {
 		if (appState.type !== 'ALL_DONE') return;
 		const preserved = inputText;
@@ -205,8 +201,6 @@
 	async function handleScan(file: File) {
 		if (isScanning) return;
 
-		// One-time privacy affordance: nothing has left the device yet — the upload
-		// only happens in scanPhoto below, after the user accepts.
 		if (typeof localStorage !== 'undefined' && localStorage.getItem('scanConsent') !== 'true') {
 			const ok = confirm(
 				'To read your list, this photo is sent to an AI service (Google or Anthropic). ' +
@@ -227,18 +221,13 @@
 				return;
 			}
 
-			// Archive the completed list first — if it throws, we surface the error
-			// without having populated the input, so scan results aren't lost when
-			// the user later presses Enter in a stale ALL_DONE state.
+			// Archive first; if it throws we bail before populating the input.
 			await ensureArchivedIfAllDone();
 
-			// Fill the input for review rather than adding directly — the user
-			// confirms with Enter, reusing the normal add flow.
+			// Fill the input for review rather than adding directly.
 			const joined = detected.join(', ');
 			inputText = inputText.trim() ? `${inputText.trim()}, ${joined}` : joined;
 
-			// Wait for the binding to flush, then put the caret at the end so the
-			// user can just hit Enter to add everything.
 			await tick();
 			autoGrow();
 			if (textareaElement) {
@@ -256,7 +245,6 @@
 	async function handleInput() {
 		autoGrow();
 
-		// A stale scan error shouldn't linger once the user starts editing.
 		if (scanError) scanError = '';
 
 		if (inputText.length > 0) {

@@ -1,6 +1,4 @@
-// Server-only: reads a photo of a shopping list with a vision LLM and returns
-// the items as a list of short strings. Files under $lib/server are never
-// bundled into the client, so API keys stay on the server.
+// Server-only ($lib/server is never bundled to the client), so API keys stay put.
 import { env } from '$env/dynamic/private';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -18,8 +16,7 @@ Return the JSON array and nothing else.`;
 
 /** Pull the first JSON array of strings out of a model's text response. */
 function parseItems(text: string): string[] {
-	// Non-greedy: match the first complete array, so trailing prose with stray
-	// brackets can't make JSON.parse fail.
+	// First array only, so trailing prose can't break JSON.parse.
 	const match = text.match(/\[[\s\S]*?\]/);
 	if (!match) return [];
 	let parsed: unknown;
@@ -35,8 +32,7 @@ function parseItems(text: string): string[] {
 		.filter((item) => item.length > 0);
 }
 
-// Transient statuses worth retrying — rate limits and upstream hiccups, which
-// the free Gemini tier returns fairly often.
+// Rate limits / upstream hiccups — common on the free Gemini tier, worth retrying.
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 const MAX_ATTEMPTS = 3;
 const REQUEST_TIMEOUT_MS = 25_000;
@@ -84,9 +80,9 @@ async function scanWithGemini(base64: string, mimeType: string): Promise<string[
 
 			const detail = await res.text().catch(() => '');
 			lastError = new Error(`Gemini request failed (${res.status}) ${detail}`.trim());
-			if (!RETRYABLE_STATUS.has(res.status)) break; // non-retryable (e.g. 400/403) — stop
+			if (!RETRYABLE_STATUS.has(res.status)) break; // non-retryable (e.g. 400/403)
 		} catch (e) {
-			lastError = e; // network error or timeout/abort — retry
+			lastError = e;
 		} finally {
 			clearTimeout(timeout);
 		}

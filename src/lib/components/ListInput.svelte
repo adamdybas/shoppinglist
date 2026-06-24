@@ -39,9 +39,8 @@
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
 		if (file) {
-			// Focus synchronously inside the change gesture so iOS Safari opens the
-			// keyboard and keeps it up during the async scan — a focus() after the
-			// network call would be ignored as it's outside a user gesture.
+			// Focus inside the gesture so iOS opens the keyboard; a focus() after the
+			// async scan would be ignored (outside a user gesture).
 			textareaElement?.focus();
 			void onScan(file);
 		}

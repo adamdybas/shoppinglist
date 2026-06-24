@@ -4,28 +4,21 @@ import type { RequestHandler } from './$types';
 
 export const prerender = false;
 
-// Give the vision LLM room to respond before Vercel's default function timeout.
 export const config = { maxDuration: 30 };
 
-// ~4 MB cap on the base64 payload — comfortably fits a compressed phone photo,
-// and stays under Vercel's ~4.5 MB serverless body limit so our 413 fires
-// rather than the platform dropping the request upstream.
+// Stay under Vercel's ~4.5 MB body limit so our 413 fires, not the platform's.
 const MAX_BASE64_BYTES = 4 * 1024 * 1024;
 
 const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
-// Best-effort per-IP rate limit. Serverless instances are ephemeral and may be
-// multiple, so this is a soft cap, not a hard guarantee — the same-origin and
-// size checks are the meaningful guards.
+// Best-effort per-IP cap — soft on multi-instance serverless; origin + size are
+// the real guards.
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX = 10;
 const hits = new Map<string, number[]>();
 
-/**
- * Read the request body as text but abort once it exceeds `maxBytes`, so a
- * client that omits Content-Length (chunked encoding) still can't stream an
- * unbounded payload into memory.
- */
+// Read the body as text but abort past maxBytes, so a client omitting
+// Content-Length can't stream an unbounded payload into memory.
 async function readBodyCapped(request: Request, maxBytes: number): Promise<string> {
 	const reader = request.body?.getReader();
 	if (!reader) return '';
@@ -58,8 +51,7 @@ function rateLimited(ip: string): boolean {
 	recent.push(now);
 	hits.set(ip, recent);
 
-	// Prune IPs that have aged out of every other entry, so the map can't grow
-	// unbounded on a long-lived warm instance.
+	// Drop aged-out IPs so the map can't grow unbounded on a warm instance.
 	for (const [key, times] of hits) {
 		if (key !== ip && times.every((t) => now - t >= RATE_WINDOW_MS)) {
 			hits.delete(key);
@@ -70,7 +62,6 @@ function rateLimited(ip: string): boolean {
 }
 
 export const POST: RequestHandler = async ({ request, url, getClientAddress }) => {
-	// Same-origin check: browsers always send Origin on a cross-origin POST.
 	const origin = request.headers.get('origin');
 	if (origin && origin !== url.origin) {
 		throw error(403, 'Forbidden');
@@ -80,8 +71,8 @@ export const POST: RequestHandler = async ({ request, url, getClientAddress }) =
 		throw error(429, 'Too many requests, slow down a moment.');
 	}
 
-	// Cheap pre-check on the declared size, then a hard cap while reading the
-	// stream (covers clients that omit Content-Length). +1 KB for JSON overhead.
+	// Pre-check the declared size; readBodyCapped enforces a hard cap while
+	// streaming (covers clients that omit Content-Length).
 	const bodyCap = MAX_BASE64_BYTES + 1024;
 	const contentLength = Number(request.headers.get('content-length'));
 	if (contentLength && contentLength > bodyCap) {
