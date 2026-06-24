@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import ArchiveStatusMessage from '$lib/components/ArchiveStatusMessage.svelte';
 	import ListInput from '$lib/components/ListInput.svelte';
 	import ShoppingListItem from '$lib/components/ShoppingListItem.svelte';
@@ -244,8 +244,15 @@
 			const joined = detected.join(', ');
 			inputText = inputText.trim() ? `${inputText.trim()}, ${joined}` : joined;
 
-			textareaElement?.focus();
+			// Wait for the binding to flush, then put the caret at the end so the
+			// user can just hit Enter to add everything.
+			await tick();
 			autoGrow();
+			if (textareaElement) {
+				textareaElement.focus();
+				const end = textareaElement.value.length;
+				textareaElement.setSelectionRange(end, end);
+			}
 		} catch (err) {
 			scanError = err instanceof Error ? err.message : 'Could not read the photo.';
 		} finally {
