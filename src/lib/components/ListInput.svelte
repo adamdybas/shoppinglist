@@ -38,7 +38,13 @@
 	function handleFileChange(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
 		const file = input.files?.[0];
-		if (file) void onScan(file);
+		if (file) {
+			// Focus synchronously inside the change gesture so iOS Safari opens the
+			// keyboard and keeps it up during the async scan — a focus() after the
+			// network call would be ignored as it's outside a user gesture.
+			textareaElement?.focus();
+			void onScan(file);
+		}
 		input.value = ''; // allow re-selecting the same file
 	}
 </script>
@@ -64,7 +70,6 @@
 			onchange={handleFileChange}
 			type="file"
 			accept="image/*"
-			capture="environment"
 			class="hidden"
 			tabindex="-1"
 			aria-hidden="true"
