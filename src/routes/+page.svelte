@@ -161,41 +161,34 @@
 		}
 	}
 
+	async function submitItems() {
+		if (!inputText.trim()) return;
+
+		const itemsToAdd = parseItemsFromInput(inputText);
+		for (const itemText of itemsToAdd) {
+			await addOrReactivateItem(itemText);
+		}
+
+		inputText = '';
+		// Let the cleared value flush to the DOM before measuring, so the textarea
+		// shrinks back to its normal height instead of keeping the tall size.
+		await tick();
+		autoGrow();
+	}
+
 	async function handleKeydown(event: KeyboardEvent) {
 		// Skip if IME is composing (autocomplete, Chinese/Japanese input, etc.)
 		if (event.isComposing) return;
 
 		if (event.key === 'Enter' && !event.shiftKey) {
 			event.preventDefault();
-
-			if (inputText.trim()) {
-				const itemsToAdd = parseItemsFromInput(inputText);
-
-				for (const itemText of itemsToAdd) {
-					await addOrReactivateItem(itemText);
-				}
-
-				inputText = '';
-				autoGrow();
-			}
+			await submitItems();
 		}
 	}
 
 	function handleFormSubmit(e: SubmitEvent) {
 		e.preventDefault();
-
-		if (inputText.trim()) {
-			const itemsToAdd = parseItemsFromInput(inputText);
-
-			(async () => {
-				for (const itemText of itemsToAdd) {
-					await addOrReactivateItem(itemText);
-				}
-
-				inputText = '';
-				autoGrow();
-			})();
-		}
+		void submitItems();
 	}
 
 	// When the list is fully checked off, adding/typing must first archive the
