@@ -2,7 +2,9 @@
 
 **Live app → https://shoppinglist.today**
 
-A simple shopping list app that feels like digital pen and paper. No login required - your list is stored locally on your device. The app is local-first; the only server touch is a small serverless `/api/scan` proxy used by the optional photo-scan feature, which keeps the vision-LLM key off the client. Everything else works fully offline.
+A simple shopping list app that feels like digital pen and paper. No login required — your list is stored locally on your device.
+
+The app is local-first and works offline. The only server touch is an optional `/api/scan` endpoint used by the photo-scan feature, where a vision LLM extracts items from a selected image for review. The API key stays server-side and never reaches the public client bundle or the repo.
 
 _A deliberately minimal PWA exploring how much clarity and usability can be achieved with almost no features._
 
@@ -58,7 +60,25 @@ yarn build
 yarn preview
 ```
 
-## Photo scan setup 🔑 (maintainer notes)
+## Case study: scanning a real handwritten shopping list
+
+This feature started with a very real household problem: my wife writes the shopping list on paper, I go shopping, and rewriting it into the app felt silly.
+
+The goal was not to turn the app into an AI product. The goal was smaller and more practical: take a quick photo of a paper list, extract the items with a vision LLM, and let the user review the result before adding anything.
+
+That real-world input immediately surfaced the kind of issues clean demos hide:
+
+- uneven lighting and camera blur
+- mixed handwriting styles
+- crossed-out items
+- ambiguous quantities
+- plausible-but-wrong extractions from unclear handwriting
+- model output that is almost JSON, but not quite
+- latency and cost concerns for a small everyday action
+
+Because of that, the feature is intentionally assistive rather than automatic: scan, review, then add.
+
+## Photo scan architecture & setup 🔑
 
 The photo-scan feature calls a vision LLM from a serverless endpoint, so the API
 key never reaches the browser or the repo.
@@ -90,7 +110,8 @@ the provider key**, so abuse can throttle the feature but never run up a bill:
 - **Gemini (recommended):** create the key in AI Studio and **do not enable
   billing** on its Google Cloud project. The key stays on the free tier — once
   the free quota is hit it returns `429` and simply stops working; with no
-  payment method attached it can never charge you.
+  billing enabled, the intended failure mode is quota exhaustion rather than
+  unexpected spend.
 - **Anthropic:** set a **monthly spend limit** (Console → Settings → Limits),
   and/or use **prepaid credits with auto-reload off** so the key stops when
   credits run out.
