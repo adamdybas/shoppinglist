@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shopping-list-v6';
+const CACHE_NAME = 'shopping-list-v7';
 const urlsToCache = ['/', '/manifest.json'];
 
 // Install event - cache essential files
@@ -29,6 +29,13 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
+	// Don't intercept API calls or non-GET requests — the Cache API only
+	// supports GET, and POST /api/scan must hit the network directly.
+	const url = new URL(event.request.url);
+	if (event.request.method !== 'GET' || url.pathname.startsWith('/api/')) {
+		return;
+	}
+
 	event.respondWith(
 		caches.match(event.request).then((response) => {
 			if (response) {

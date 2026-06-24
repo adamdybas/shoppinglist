@@ -11,27 +11,40 @@
 		isScrolled,
 		hasDoneItems,
 		hideDone,
+		isScanning,
 		onInput,
 		onKeydown,
 		onPaste,
 		onSubmit,
-		onToggleHideDone
+		onToggleHideDone,
+		onScan
 	}: {
 		inputText?: string;
 		textareaElement?: HTMLTextAreaElement;
 		isScrolled: boolean;
 		hasDoneItems: boolean;
 		hideDone: boolean;
+		isScanning: boolean;
 		onInput: () => void | Promise<void>;
 		onKeydown: (event: KeyboardEvent) => void | Promise<void>;
 		onPaste: () => void;
 		onSubmit: (event: SubmitEvent) => void;
 		onToggleHideDone: () => void;
+		onScan: (file: File) => void | Promise<void>;
 	} = $props();
+
+	let fileInput = $state<HTMLInputElement>();
+
+	function handleFileChange(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (file) void onScan(file);
+		input.value = ''; // allow re-selecting the same file
+	}
 </script>
 
 <div class="sticky top-0 z-10 mb-2 bg-white dark:bg-[#0F0F0F] {isScrolled ? 'py-2' : 'py-0'}">
-	<form onsubmit={onSubmit}>
+	<form onsubmit={onSubmit} class="relative">
 		<textarea
 			bind:this={textareaElement}
 			bind:value={inputText}
@@ -39,13 +52,65 @@
 			onkeydown={(event) => void onKeydown(event)}
 			onpaste={onPaste}
 			placeholder="Type items ..."
-			class="w-full resize-none rounded-lg border border-[#B8B1A3] bg-white px-4 py-3 text-[#2A2A2A] placeholder-[#6B6B6B] transition-all focus:border-[rgba(180,170,150,0.5)] focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] focus:outline-none focus-visible:outline-none dark:border-[#6E6A63] dark:bg-[#1a1a1a] dark:text-[#D4D4D4] dark:placeholder-[#9A9A9A] dark:focus:border-[rgba(180,170,150,0.5)] dark:focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] {isScrolled
+			class="w-full resize-none rounded-lg border border-[#B8B1A3] bg-white py-3 pr-14 pl-4 text-[#2A2A2A] placeholder-[#6B6B6B] transition-all focus:border-[rgba(180,170,150,0.5)] focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] focus:outline-none focus-visible:outline-none dark:border-[#6E6A63] dark:bg-[#1a1a1a] dark:text-[#D4D4D4] dark:placeholder-[#9A9A9A] dark:focus:border-[rgba(180,170,150,0.5)] dark:focus:shadow-[0_0_0_3px_rgba(180,170,150,0.5)] {isScrolled
 				? 'overflow-y-auto'
 				: 'overflow-hidden'}"
 			rows="1"
 			style="min-height: 60px; font-size: 24px; line-height: 1.4;"
 			{...textareaInputAttributes}
 		></textarea>
+		<input
+			bind:this={fileInput}
+			onchange={handleFileChange}
+			type="file"
+			accept="image/*"
+			capture="environment"
+			class="hidden"
+			tabindex="-1"
+			aria-hidden="true"
+		/>
+		<button
+			type="button"
+			onclick={() => fileInput?.click()}
+			disabled={isScanning}
+			class="absolute top-3 right-3 p-1 text-[#6B6B6B] transition-colors hover:text-[#2A2A2A] disabled:cursor-not-allowed dark:text-[#9A9A9A] dark:hover:text-[#D4D4D4]"
+			aria-label="Scan a photo of a list (sends the image to an AI service to read it)"
+			title="Scan a photo of a list — sends the image to an AI service to read it"
+		>
+			{#if isScanning}
+				<svg
+					class="animate-spin"
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="M21 12a9 9 0 1 1-6.219-8.56" />
+				</svg>
+			{:else}
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					width="24"
+					height="24"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path
+						d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"
+					/>
+					<circle cx="12" cy="13" r="3" />
+				</svg>
+			{/if}
+		</button>
 		<button type="submit" class="hidden" tabindex="-1" aria-hidden="true">Submit</button>
 	</form>
 	<div class="hide-toggle-row {hasDoneItems ? 'hide-toggle-visible' : 'hide-toggle-hidden'}">

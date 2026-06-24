@@ -12,7 +12,7 @@
 		clearAllItems,
 		type ShoppingItem
 	} from '$lib/db';
-	import { parseItemsFromInput, shareList } from '$lib/list';
+	import { parseItemsFromInput, shareList, scanPhoto } from '$lib/list';
 	import { transition, checkAllDone, type AppState, type AppEvent } from '$lib/stateMachine';
 	import { getSwipeProgress, type SwipeStart } from '$lib/swipe';
 
@@ -35,6 +35,8 @@
 	let swipeProgress = $state<Record<string, number>>({});
 	let addedItemsSet = $state(new Set<string>());
 	let isScrolled = $state(false);
+	let isScanning = $state(false);
+	let scanError = $state('');
 	let hideDone = $state(
 		typeof localStorage !== 'undefined' && localStorage.getItem('hideDone') === 'true'
 	);
@@ -196,14 +198,69 @@
 		}
 	}
 
+	// When the list is fully checked off, adding/typing must first archive the
+	// completed list and transition out of ALL_DONE — otherwise ITEM_ADDED is
+	// ignored and the UI keeps showing the old list. Used by both typing and scan.
+	async function ensureArchivedIfAllDone() {
+		if (appState.type !== 'ALL_DONE') return;
+		const preserved = inputText;
+		await archiveAndClear();
+		dispatch({ type: 'START_TYPING' });
+		inputText = preserved;
+	}
+
+	async function handleScan(file: File) {
+		if (isScanning) return;
+
+		// One-time privacy affordance: nothing has left the device yet — the upload
+		// only happens in scanPhoto below, after the user accepts.
+		if (typeof localStorage !== 'undefined' && localStorage.getItem('scanConsent') !== 'true') {
+			const ok = confirm(
+				'To read your list, this photo is sent to an AI service (Google or Anthropic). ' +
+					'Detected items appear for you to review before anything is added. Continue?'
+			);
+			if (!ok) return;
+			localStorage.setItem('scanConsent', 'true');
+		}
+
+		isScanning = true;
+		scanError = '';
+
+		try {
+			const detected = await scanPhoto(file);
+
+			if (detected.length === 0) {
+				scanError = "Couldn't read any items from that photo.";
+				return;
+			}
+
+			// Archive the completed list first — if it throws, we surface the error
+			// without having populated the input, so scan results aren't lost when
+			// the user later presses Enter in a stale ALL_DONE state.
+			await ensureArchivedIfAllDone();
+
+			// Fill the input for review rather than adding directly — the user
+			// confirms with Enter, reusing the normal add flow.
+			const joined = detected.join(', ');
+			inputText = inputText.trim() ? `${inputText.trim()}, ${joined}` : joined;
+
+			textareaElement?.focus();
+			autoGrow();
+		} catch (err) {
+			scanError = err instanceof Error ? err.message : 'Could not read the photo.';
+		} finally {
+			isScanning = false;
+		}
+	}
+
 	async function handleInput() {
 		autoGrow();
 
-		if (inputText.length > 0 && appState.type === 'ALL_DONE') {
-			const typedText = inputText;
-			await archiveAndClear();
-			dispatch({ type: 'START_TYPING' });
-			inputText = typedText;
+		// A stale scan error shouldn't linger once the user starts editing.
+		if (scanError) scanError = '';
+
+		if (inputText.length > 0) {
+			await ensureArchivedIfAllDone();
 		}
 	}
 
@@ -308,15 +365,21 @@
 			{isScrolled}
 			{hasDoneItems}
 			{hideDone}
+			{isScanning}
 			onInput={handleInput}
 			onKeydown={handleKeydown}
 			onPaste={handlePaste}
 			onSubmit={handleFormSubmit}
+			onScan={handleScan}
 			onToggleHideDone={() => {
 				hideDone = !hideDone;
 				localStorage.setItem('hideDone', String(hideDone));
 			}}
 		/>
+
+		{#if scanError}
+			<p class="mb-2 text-sm text-red-600 dark:text-red-400" role="alert">{scanError}</p>
+		{/if}
 
 		<!-- Messages -->
 		<ArchiveStatusMessage stateType={appState.type} onRestoreArchivedList={restoreArchivedList} />
