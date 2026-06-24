@@ -64,11 +64,12 @@ yarn preview
 
 This feature started with a very real household problem: my wife writes the shopping list on paper, I go shopping, and rewriting it into the app felt silly.
 
-<p align="center">
-  <img src="docs/case-study/paper-list.jpg" alt="Handwritten shopping list on grid paper, with two items crossed out" width="45%">
-  &nbsp;&nbsp;
-  <img src="docs/case-study/app-result.png" alt="The same list extracted into the app, crossed-out items skipped" width="45%">
-</p>
+<table align="center">
+  <tr>
+    <td valign="top" width="50%"><img src="docs/case-study/paper-list.jpg" alt="Handwritten shopping list on grid paper, with two items crossed out" width="100%"></td>
+    <td valign="top" width="50%"><img src="docs/case-study/app-result.png" alt="The same list extracted into the app, crossed-out items skipped" width="100%"></td>
+  </tr>
+</table>
 
 <p align="center"><sub>A real paper list (left) extracted into the app (right). The two crossed-out items are skipped; "masło" written once appears once.</sub></p>
 
