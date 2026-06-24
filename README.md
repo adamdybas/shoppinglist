@@ -71,7 +71,7 @@ This feature started with a very real household problem: my wife writes the shop
   </tr>
 </table>
 
-<p align="center"><sub>A real paper list (left) extracted into the app (right). The two crossed-out items are skipped; "masło" written once appears once.</sub></p>
+<p align="center"><sub>A real paper list (left) extracted into the app (right). The two crossed-out items are skipped.</sub></p>
 
 The goal was not to turn the app into an AI product. The goal was smaller and more practical: take a quick photo of a paper list, extract the items with a vision LLM, and let the user review the result before adding anything.
 
