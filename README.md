@@ -87,6 +87,10 @@ That real-world input immediately surfaced the kind of issues clean demos hide:
 
 Because of that, the feature is intentionally assistive rather than automatic: scan, review, then add.
 
+A small existing UX decision became more important after adding photo scan: the app never creates duplicate items. If a scanned item already exists and is checked, adding it again simply unchecks it.
+
+That means the same paper list can be scanned more than once as it changes. The app treats the photo scan as an update to the current list, not a destructive import.
+
 ## Photo scan architecture & setup 🔑
 
 The photo-scan feature calls a vision LLM from a serverless endpoint, so the API
