@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
 	import ArchiveStatusMessage from '$lib/components/ArchiveStatusMessage.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import ListInput from '$lib/components/ListInput.svelte';
 	import ShoppingListItem from '$lib/components/ShoppingListItem.svelte';
 	import {
@@ -37,6 +38,9 @@
 	let isScrolled = $state(false);
 	let isScanning = $state(false);
 	let scanError = $state('');
+	let showScanConsent = $state(false);
+	let pendingScanFile: File | null = null;
+	let scanButton = $state<HTMLButtonElement>();
 	let hideDone = $state(
 		typeof localStorage !== 'undefined' && localStorage.getItem('hideDone') === 'true'
 	);
@@ -198,18 +202,36 @@
 		inputText = preserved;
 	}
 
-	async function handleScan(file: File) {
+	function handleScan(file: File) {
 		if (isScanning) return;
 
+		// First use: ask consent before sending the photo to a third party.
 		if (typeof localStorage !== 'undefined' && localStorage.getItem('scanConsent') !== 'true') {
-			const ok = confirm(
-				'To read your list, this photo is sent to an AI service (Google or Anthropic). ' +
-					'Detected items appear for you to review before anything is added. Continue?'
-			);
-			if (!ok) return;
-			localStorage.setItem('scanConsent', 'true');
+			pendingScanFile = file;
+			showScanConsent = true;
+			return;
 		}
 
+		void runScan(file);
+	}
+
+	function confirmScanConsent() {
+		showScanConsent = false;
+		if (typeof localStorage !== 'undefined') localStorage.setItem('scanConsent', 'true');
+		const file = pendingScanFile;
+		pendingScanFile = null;
+		if (file) void runScan(file);
+	}
+
+	async function cancelScanConsent() {
+		showScanConsent = false;
+		pendingScanFile = null;
+		// Return focus to the trigger once the background is no longer inert.
+		await tick();
+		scanButton?.focus();
+	}
+
+	async function runScan(file: File) {
 		isScanning = true;
 		scanError = '';
 
@@ -313,7 +335,8 @@
 	<meta name="color-scheme" content="light dark" />
 </svelte:head>
 
-<div class="min-h-screen bg-white p-4 dark:bg-[#0F0F0F]">
+<!-- inert while the dialog is open: drops the background from focus/pointer/a11y -->
+<div class="min-h-screen bg-white p-4 dark:bg-[#0F0F0F]" inert={showScanConsent}>
 	<div class="mx-auto max-w-2xl">
 		<!-- Header -->
 		<div class="mb-6 flex items-center justify-between">
@@ -350,6 +373,7 @@
 		<ListInput
 			bind:inputText
 			bind:textareaElement
+			bind:scanButton
 			{isScrolled}
 			{hasDoneItems}
 			{hideDone}
@@ -394,6 +418,16 @@
 		</div>
 	</div>
 </div>
+
+<ConfirmDialog
+	open={showScanConsent}
+	title="Scan with AI?"
+	message="This photo will be sent to an AI service to read your list. You'll review the extracted items before anything is added."
+	confirmLabel="Continue"
+	cancelLabel="Cancel"
+	onConfirm={confirmScanConsent}
+	onCancel={cancelScanConsent}
+/>
 
 <style>
 	@media (prefers-color-scheme: dark) {

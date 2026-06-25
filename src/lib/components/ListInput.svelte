@@ -8,6 +8,7 @@
 	let {
 		inputText = $bindable(''),
 		textareaElement = $bindable(),
+		scanButton = $bindable(),
 		isScrolled,
 		hasDoneItems,
 		hideDone,
@@ -21,6 +22,7 @@
 	}: {
 		inputText?: string;
 		textareaElement?: HTMLTextAreaElement;
+		scanButton?: HTMLButtonElement;
 		isScrolled: boolean;
 		hasDoneItems: boolean;
 		hideDone: boolean;
@@ -74,12 +76,12 @@
 			aria-hidden="true"
 		/>
 		<button
+			bind:this={scanButton}
 			type="button"
 			onclick={() => fileInput?.click()}
 			disabled={isScanning}
 			class="absolute top-3 right-3 p-1 text-[#6B6B6B] transition-colors hover:text-[#2A2A2A] disabled:cursor-not-allowed dark:text-[#9A9A9A] dark:hover:text-[#D4D4D4]"
 			aria-label="Scan a photo of a list (sends the image to an AI service to read it)"
-			title="Scan a photo of a list — sends the image to an AI service to read it"
 		>
 			{#if isScanning}
 				<svg
