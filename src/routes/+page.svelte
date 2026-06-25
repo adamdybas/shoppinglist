@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import ArchiveStatusMessage from '$lib/components/ArchiveStatusMessage.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 	import ListInput from '$lib/components/ListInput.svelte';
 	import ShoppingListItem from '$lib/components/ShoppingListItem.svelte';
 	import {
@@ -12,7 +13,7 @@
 		clearAllItems,
 		type ShoppingItem
 	} from '$lib/db';
-	import { parseItemsFromInput, shareList } from '$lib/list';
+	import { parseItemsFromInput, shareList, scanPhoto } from '$lib/list';
 	import { transition, checkAllDone, type AppState, type AppEvent } from '$lib/stateMachine';
 	import { getSwipeProgress, type SwipeStart } from '$lib/swipe';
 
@@ -35,6 +36,11 @@
 	let swipeProgress = $state<Record<string, number>>({});
 	let addedItemsSet = $state(new Set<string>());
 	let isScrolled = $state(false);
+	let isScanning = $state(false);
+	let scanError = $state('');
+	let showScanConsent = $state(false);
+	let pendingScanFile: File | null = null;
+	let scanButton = $state<HTMLButtonElement>();
 	let hideDone = $state(
 		typeof localStorage !== 'undefined' && localStorage.getItem('hideDone') === 'true'
 	);
@@ -159,51 +165,112 @@
 		}
 	}
 
+	async function submitItems() {
+		if (!inputText.trim()) return;
+
+		const itemsToAdd = parseItemsFromInput(inputText);
+		for (const itemText of itemsToAdd) {
+			await addOrReactivateItem(itemText);
+		}
+
+		inputText = '';
+		await tick(); // let the cleared value flush before measuring height
+		autoGrow();
+	}
+
 	async function handleKeydown(event: KeyboardEvent) {
 		// Skip if IME is composing (autocomplete, Chinese/Japanese input, etc.)
 		if (event.isComposing) return;
 
 		if (event.key === 'Enter' && !event.shiftKey) {
 			event.preventDefault();
-
-			if (inputText.trim()) {
-				const itemsToAdd = parseItemsFromInput(inputText);
-
-				for (const itemText of itemsToAdd) {
-					await addOrReactivateItem(itemText);
-				}
-
-				inputText = '';
-				autoGrow();
-			}
+			await submitItems();
 		}
 	}
 
 	function handleFormSubmit(e: SubmitEvent) {
 		e.preventDefault();
+		void submitItems();
+	}
 
-		if (inputText.trim()) {
-			const itemsToAdd = parseItemsFromInput(inputText);
+	// In ALL_DONE, adding must archive the old list first or ITEM_ADDED is ignored.
+	async function ensureArchivedIfAllDone() {
+		if (appState.type !== 'ALL_DONE') return;
+		const preserved = inputText;
+		await archiveAndClear();
+		dispatch({ type: 'START_TYPING' });
+		inputText = preserved;
+	}
 
-			(async () => {
-				for (const itemText of itemsToAdd) {
-					await addOrReactivateItem(itemText);
-				}
+	function handleScan(file: File) {
+		if (isScanning) return;
 
-				inputText = '';
-				autoGrow();
-			})();
+		// First use: ask consent before sending the photo to a third party.
+		if (typeof localStorage !== 'undefined' && localStorage.getItem('scanConsent') !== 'true') {
+			pendingScanFile = file;
+			showScanConsent = true;
+			return;
+		}
+
+		void runScan(file);
+	}
+
+	function confirmScanConsent() {
+		showScanConsent = false;
+		if (typeof localStorage !== 'undefined') localStorage.setItem('scanConsent', 'true');
+		const file = pendingScanFile;
+		pendingScanFile = null;
+		if (file) void runScan(file);
+	}
+
+	async function cancelScanConsent() {
+		showScanConsent = false;
+		pendingScanFile = null;
+		// Return focus to the trigger once the background is no longer inert.
+		await tick();
+		scanButton?.focus();
+	}
+
+	async function runScan(file: File) {
+		isScanning = true;
+		scanError = '';
+
+		try {
+			const detected = await scanPhoto(file);
+
+			if (detected.length === 0) {
+				scanError = "Couldn't read any items from that photo.";
+				return;
+			}
+
+			// Archive first; if it throws we bail before populating the input.
+			await ensureArchivedIfAllDone();
+
+			// Fill the input for review rather than adding directly.
+			const joined = detected.join(', ');
+			inputText = inputText.trim() ? `${inputText.trim()}, ${joined}` : joined;
+
+			await tick();
+			autoGrow();
+			if (textareaElement) {
+				textareaElement.focus();
+				const end = textareaElement.value.length;
+				textareaElement.setSelectionRange(end, end);
+			}
+		} catch (err) {
+			scanError = err instanceof Error ? err.message : 'Could not read the photo.';
+		} finally {
+			isScanning = false;
 		}
 	}
 
 	async function handleInput() {
 		autoGrow();
 
-		if (inputText.length > 0 && appState.type === 'ALL_DONE') {
-			const typedText = inputText;
-			await archiveAndClear();
-			dispatch({ type: 'START_TYPING' });
-			inputText = typedText;
+		if (scanError) scanError = '';
+
+		if (inputText.length > 0) {
+			await ensureArchivedIfAllDone();
 		}
 	}
 
@@ -268,7 +335,8 @@
 	<meta name="color-scheme" content="light dark" />
 </svelte:head>
 
-<div class="min-h-screen bg-white p-4 dark:bg-[#0F0F0F]">
+<!-- inert while the dialog is open: drops the background from focus/pointer/a11y -->
+<div class="min-h-screen bg-white p-4 dark:bg-[#0F0F0F]" inert={showScanConsent}>
 	<div class="mx-auto max-w-2xl">
 		<!-- Header -->
 		<div class="mb-6 flex items-center justify-between">
@@ -305,18 +373,25 @@
 		<ListInput
 			bind:inputText
 			bind:textareaElement
+			bind:scanButton
 			{isScrolled}
 			{hasDoneItems}
 			{hideDone}
+			{isScanning}
 			onInput={handleInput}
 			onKeydown={handleKeydown}
 			onPaste={handlePaste}
 			onSubmit={handleFormSubmit}
+			onScan={handleScan}
 			onToggleHideDone={() => {
 				hideDone = !hideDone;
 				localStorage.setItem('hideDone', String(hideDone));
 			}}
 		/>
+
+		{#if scanError}
+			<p class="mb-2 text-sm text-red-600 dark:text-red-400" role="alert">{scanError}</p>
+		{/if}
 
 		<!-- Messages -->
 		<ArchiveStatusMessage stateType={appState.type} onRestoreArchivedList={restoreArchivedList} />
@@ -343,6 +418,16 @@
 		</div>
 	</div>
 </div>
+
+<ConfirmDialog
+	open={showScanConsent}
+	title="Scan with AI?"
+	message="This photo will be sent to an AI service to read your list. You'll review the extracted items before anything is added."
+	confirmLabel="Continue"
+	cancelLabel="Cancel"
+	onConfirm={confirmScanConsent}
+	onCancel={cancelScanConsent}
+/>
 
 <style>
 	@media (prefers-color-scheme: dark) {
