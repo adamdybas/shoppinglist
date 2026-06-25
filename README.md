@@ -4,16 +4,18 @@
 
 A simple shopping list app that feels like digital pen and paper. No login required — your list is stored locally on your device.
 
-The app is local-first and works offline. The only server touch is an optional `/api/scan` endpoint used by the photo-scan feature, where a vision LLM extracts items from a selected image for review. The API key stays server-side and never reaches the public client bundle or the repo.
+*An intentionally minimal PWA exploring how much clarity and usability can be achieved with almost no features.*
 
-_A deliberately minimal PWA exploring how much clarity and usability can be achieved with almost no features._
+It works offline by default, with one optional AI-assisted feature: photo scan for handwritten shopping lists.
+
+→ See the [photo-scan case study](#case-study-scanning-a-real-handwritten-shopping-list): reading a real handwritten list with a vision LLM.
 
 ## Features ✨
 
 ### Interaction & UX
 
 - **Quick Adding**: Type items separated by `, ` or `. ` (comma/dot + space), press Enter
-- **Photo Scan** 📷: Snap a photo of a handwritten or printed list — a vision LLM reads it and fills the input for you to review before adding
+- **Photo Scan** 📷: Snap a photo of a handwritten or printed list — a vision LLM extracts the items for review before adding
 - **Smart Duplicates**: Adding an existing item that's checked will uncheck it instead
 - **Touch Friendly**: Tap item to check/uncheck, or swipe right ~20% on mobile
 - **Auto-growing Input**: Input grows as you type (up to 50vh, or compact 80px when scrolled)
@@ -38,6 +40,7 @@ _A deliberately minimal PWA exploring how much clarity and usability can be achi
 ## Tech Stack 🛠️
 
 - **SvelteKit** - Fast, modern web framework
+- **TypeScript** - Type-safe app and serverless endpoint code
 - **Tailwind CSS** - Utility-first styling
 - **IndexedDB** - Primary local-first storage
 - **localStorage** - Backup storage
@@ -71,7 +74,7 @@ This feature started with a very real household problem: my wife writes the shop
   </tr>
 </table>
 
-<p align="center"><sub>A real handwritten shopping list scanned into the app.<br>Messy input by design: grid paper, uneven light, crossed-out items, mixed Polish/English words — with review before saving, because small corrections are sometimes needed.</sub></p>
+<p align="center"><sub>A real handwritten shopping list scanned into the app.<br>Messy input by design: grid paper, uneven light, crossed-out items, mixed Polish/English words — with review before saving because real handwriting still needs human judgement.</sub></p>
 
 The goal was not to turn the app into an AI product. The goal was smaller and more practical: take a quick photo of a paper list, extract the items with a vision LLM, and let the user review the result before adding anything.
 
@@ -89,7 +92,7 @@ Because of that, the feature is intentionally assistive rather than automatic: s
 
 A small existing UX decision became more important after adding photo scan: the app never creates duplicate items. If a scanned item already exists and is checked, adding it again simply unchecks it.
 
-That means the same paper list can be scanned more than once as it changes. The app treats the photo scan as an update to the current list, not a destructive import.
+This means the same paper list can be scanned more than once as it changes. The scan behaves like an update to the current list, not a destructive import.
 
 ## Photo scan architecture & setup 🔑
 
