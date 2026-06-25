@@ -4,7 +4,7 @@
 
 A simple shopping list app that feels like digital pen and paper. No login required — your list is stored locally on your device.
 
-*An intentionally minimal PWA exploring how much clarity and usability can be achieved with almost no features.*
+_An intentionally minimal PWA exploring how much clarity and usability can be achieved with almost no features._
 
 It works offline by default, with one optional AI-assisted feature: photo scan for handwritten shopping lists.
 
@@ -156,9 +156,11 @@ When deploying updates, bump `CACHE_NAME` version in `static/service-worker.js` 
 
 **Privacy:**
 
-- All data stored locally on your device
-- No accounts, no tracking
-- Your list stays on your device; the optional photo scan sends only the selected image to a serverless scan endpoint for extraction
+- No account required.
+- No ads or cross-site tracking.
+- Your shopping list stays on your device.
+- Optional photo scan sends only the selected image to an AI provider to extract items.
+- The app uses privacy-friendly, cookieless Vercel Analytics to understand basic traffic.
 
 ## License
 

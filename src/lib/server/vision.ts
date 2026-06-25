@@ -34,8 +34,10 @@ function parseItems(text: string): string[] {
 
 // Rate limits / upstream hiccups — common on the free Gemini tier, worth retrying.
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
-const MAX_ATTEMPTS = 3;
-const REQUEST_TIMEOUT_MS = 25_000;
+// Total attempts per scan. Sized so 2 × REQUEST_TIMEOUT_MS plus backoff stays
+// under the route's 30s maxDuration, so our own 502 fires before Vercel's 504.
+const MAX_ATTEMPTS = 2;
+const REQUEST_TIMEOUT_MS = 12_000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -53,7 +55,7 @@ async function scanWithGemini(base64: string, mimeType: string): Promise<string[
 
 	let lastError: unknown;
 	for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-		if (attempt > 1) await sleep(500 * 2 ** (attempt - 2)); // backoff: 500ms, 1s
+		if (attempt > 1) await sleep(500 * 2 ** (attempt - 2)); // backoff: 500ms
 
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -96,7 +98,12 @@ async function scanWithAnthropic(base64: string, mimeType: string): Promise<stri
 	if (!apiKey) throw new Error('ANTHROPIC_API_KEY is not set');
 
 	// The SDK retries transient errors (429/5xx) with backoff on its own.
-	const client = new Anthropic({ apiKey, maxRetries: MAX_ATTEMPTS, timeout: REQUEST_TIMEOUT_MS });
+	// maxRetries counts retries *beyond* the first call, so -1 to match MAX_ATTEMPTS.
+	const client = new Anthropic({
+		apiKey,
+		maxRetries: MAX_ATTEMPTS - 1,
+		timeout: REQUEST_TIMEOUT_MS
+	});
 	const response = await client.messages.create({
 		model: 'claude-haiku-4-5',
 		max_tokens: 1024,
