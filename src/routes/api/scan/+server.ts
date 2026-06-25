@@ -94,9 +94,6 @@ export const POST: RequestHandler = async ({ request, url, getClientAddress }) =
 	if (!ALLOWED_MIME.has(mimeType)) {
 		throw error(400, 'Unsupported image type');
 	}
-	if (image.length > MAX_BASE64_BYTES) {
-		throw error(413, 'Image too large');
-	}
 
 	try {
 		const items = await scanImage(image, mimeType);

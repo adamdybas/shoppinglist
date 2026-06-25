@@ -26,7 +26,9 @@
 		} else {
 			// In dev the SW just serves stale cached modules. Tear it down so edits
 			// always load fresh.
-			navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((r) => r.unregister()));
+			navigator.serviceWorker
+				.getRegistrations()
+				.then((regs) => regs.forEach((r) => r.unregister()));
 			if ('caches' in window) caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
 		}
 	});

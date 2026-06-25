@@ -38,6 +38,7 @@
 	let isScrolled = $state(false);
 	let isScanning = $state(false);
 	let scanError = $state('');
+	let scanStatus = $state(''); // screen-reader-only progress/result announcement
 	let showScanConsent = $state(false);
 	let pendingScanFile: File | null = null;
 	let scanButton = $state<HTMLButtonElement>();
@@ -234,14 +235,18 @@
 	async function runScan(file: File) {
 		isScanning = true;
 		scanError = '';
+		scanStatus = 'Scanning photo…';
 
 		try {
 			const detected = await scanPhoto(file);
 
 			if (detected.length === 0) {
+				scanStatus = '';
 				scanError = "Couldn't read any items from that photo.";
 				return;
 			}
+
+			scanStatus = `Found ${detected.length} item${detected.length === 1 ? '' : 's'} — review and add.`;
 
 			// Archive first; if it throws we bail before populating the input.
 			await ensureArchivedIfAllDone();
@@ -258,6 +263,7 @@
 				textareaElement.setSelectionRange(end, end);
 			}
 		} catch (err) {
+			scanStatus = '';
 			scanError = err instanceof Error ? err.message : 'Could not read the photo.';
 		} finally {
 			isScanning = false;
@@ -392,6 +398,9 @@
 		{#if scanError}
 			<p class="mb-2 text-sm text-red-600 dark:text-red-400" role="alert">{scanError}</p>
 		{/if}
+
+		<!-- Screen-reader-only: announces scan progress and the result count -->
+		<p class="sr-only" role="status" aria-live="polite">{scanStatus}</p>
 
 		<!-- Messages -->
 		<ArchiveStatusMessage stateType={appState.type} onRestoreArchivedList={restoreArchivedList} />
