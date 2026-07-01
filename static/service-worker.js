@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shopping-list-v7';
+const CACHE_NAME = 'shopping-list-v8';
 const urlsToCache = ['/', '/manifest.json'];
 
 // Install event - cache essential files
@@ -27,7 +27,7 @@ self.addEventListener('activate', (event) => {
 	self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - network-first for navigations, cache-first for assets
 self.addEventListener('fetch', (event) => {
 	// Don't intercept API calls or non-GET requests — the Cache API only
 	// supports GET, and POST /api/scan must hit the network directly.
@@ -36,6 +36,28 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	// Navigations get network-first: the HTML references hashed asset URLs
+	// from a specific build, so serving a stale cached document after a
+	// deploy would request assets that no longer exist (unstyled page).
+	if (event.request.mode === 'navigate') {
+		event.respondWith(
+			fetch(event.request)
+				.then((response) => {
+					if (response && response.status === 200) {
+						const responseToCache = response.clone();
+						caches.open(CACHE_NAME).then((cache) => {
+							cache.put(event.request, responseToCache);
+						});
+					}
+					return response;
+				})
+				.catch(() => caches.match(event.request).then((cached) => cached || caches.match('/')))
+		);
+		return;
+	}
+
+	// Everything else (hashed immutable assets, icons, manifest) is safe
+	// to serve cache-first.
 	event.respondWith(
 		caches.match(event.request).then((response) => {
 			if (response) {
