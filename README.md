@@ -67,20 +67,20 @@ yarn preview
 # Run unit tests
 yarn test
 
-# Format check + lint
+# Check formatting and linting
 yarn lint
 ```
 
 ## Testing 🧪
 
-The app is deliberately small, so the test suite ([Vitest](https://vitest.dev)) focuses on the logic where bugs would actually hurt, rather than chasing coverage:
+The app is deliberately small, so the test suite ([Vitest](https://vitest.dev)) focuses on the logic where bugs would actually hurt, rather than chasing coverage for its own sake:
 
-- **Input parsing** (`src/lib/list.test.ts`) — splitting typed input on `, ` / `. ` without breaking quantities like `1.5kg`
-- **Smart duplicates** (`src/lib/list.test.ts`) — the case-insensitive add / uncheck / skip rule that makes rescanning a photo an update instead of a re-add
-- **App state machine** (`src/lib/stateMachine.test.ts`) — every transition of the archive lifecycle: loading, active, all-done, archived, restore
-- **Almost-JSON parsing** (`src/lib/server/parseItems.test.ts`) — extracting the item array from real vision-model output: prose around it, markdown fences, single quotes, non-string entries, or no array at all
+- **Input parsing** (`src/lib/list.test.ts`) — splitting typed input on `, ` and `. ` without breaking quantities such as `1.5kg`
+- **Smart duplicate handling** (`src/lib/list.test.ts`) — the case-insensitive add / uncheck / skip behavior that makes rescanning a photo update the list instead of adding the same items again
+- **App state machine** (`src/lib/stateMachine.test.ts`) — covering every transition in the archive lifecycle: loading, active, all-done, archived, and restore
+- **Almost-JSON parsing** (`src/lib/server/parseItems.test.ts`) — extracting an item array from real vision-model output, including surrounding prose, markdown fences, single quotes, non-string entries, and responses with no array at all
 
-Every push and pull request runs the full gate in CI: `svelte-check`, formatting + lint, the test suite, and a production build.
+Every pull request and push to `main` runs the full CI gate: `svelte-check`, formatting and linting, the test suite, and a production build.
 
 ## Case study: scanning a real handwritten shopping list
 
