@@ -1,5 +1,7 @@
 # Shopping List Today 📝
 
+[![CI](https://github.com/adamdybas/shoppinglist/actions/workflows/ci.yml/badge.svg)](https://github.com/adamdybas/shoppinglist/actions/workflows/ci.yml)
+
 **Live app → https://shoppinglist.today**
 
 A simple shopping list app that feels like digital pen and paper. No login required — your list is stored locally on your device.
@@ -77,6 +79,8 @@ The app is deliberately small, so the test suite ([Vitest](https://vitest.dev)) 
 - **Smart duplicates** (`src/lib/list.test.ts`) — the case-insensitive add / uncheck / skip rule that makes rescanning a photo an update instead of a re-add
 - **App state machine** (`src/lib/stateMachine.test.ts`) — every transition of the archive lifecycle: loading, active, all-done, archived, restore
 - **Almost-JSON parsing** (`src/lib/server/parseItems.test.ts`) — extracting the item array from real vision-model output: prose around it, markdown fences, single quotes, non-string entries, or no array at all
+
+Every push and pull request runs the full gate in CI: `svelte-check`, formatting + lint, the test suite, and a production build.
 
 ## Case study: scanning a real handwritten shopping list
 
