@@ -1,6 +1,7 @@
 // Server-only ($lib/server is never bundled to the client), so API keys stay put.
 import { env } from '$env/dynamic/private';
 import Anthropic from '@anthropic-ai/sdk';
+import { parseItems } from './parseItems';
 
 const PROMPT = `You are reading a photo of a handwritten or printed shopping list.
 Extract every shopping item you can see. Return ONLY a JSON array of short
@@ -13,24 +14,6 @@ Rules:
 - Ignore prices, dates, headings, page numbers, and illegible marks.
 - If you cannot read any items, return [].
 Return the JSON array and nothing else.`;
-
-/** Pull the first JSON array of strings out of a model's text response. */
-function parseItems(text: string): string[] {
-	// First array only, so trailing prose can't break JSON.parse.
-	const match = text.match(/\[[\s\S]*?\]/);
-	if (!match) return [];
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(match[0]);
-	} catch {
-		return [];
-	}
-	if (!Array.isArray(parsed)) return [];
-	return parsed
-		.filter((item): item is string => typeof item === 'string')
-		.map((item) => item.trim())
-		.filter((item) => item.length > 0);
-}
 
 // Rate limits / upstream hiccups — common on the free Gemini tier, worth retrying.
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);

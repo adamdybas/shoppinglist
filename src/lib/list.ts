@@ -7,6 +7,22 @@ export function parseItemsFromInput(inputText: string): string[] {
 		.filter((itemText) => itemText.length > 0);
 }
 
+export type ItemAction = { kind: 'add' } | { kind: 'uncheck'; id: string } | { kind: 'skip' };
+
+/**
+ * Decide what submitting `itemText` should do to the list. Matching is
+ * case-insensitive, and a text already on the list is never duplicated:
+ * if its item is checked off it comes back (uncheck), otherwise nothing
+ * happens. This is what makes rescanning a photo an update, not a re-add.
+ */
+export function resolveItemAction(items: ShoppingItem[], itemText: string): ItemAction {
+	const lowerText = itemText.toLowerCase();
+	const existing = items.find((item) => item.text.toLowerCase() === lowerText);
+	if (!existing) return { kind: 'add' };
+	if (existing.done) return { kind: 'uncheck', id: existing.id };
+	return { kind: 'skip' };
+}
+
 /**
  * Downscale + compress an image file to a JPEG and return its base64 data
  * (without the data-URL prefix). Keeps the upload small and cheap to scan.
