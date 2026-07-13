@@ -13,7 +13,7 @@
 		clearAllItems,
 		type ShoppingItem
 	} from '$lib/db';
-	import { parseItemsFromInput, shareList, scanPhoto } from '$lib/list';
+	import { parseItemsFromInput, resolveItemAction, shareList, scanPhoto } from '$lib/list';
 	import { transition, checkAllDone, type AppState, type AppEvent } from '$lib/stateMachine';
 	import { getSwipeProgress, type SwipeStart } from '$lib/swipe';
 
@@ -34,7 +34,6 @@
 	let swipeStart: SwipeStart = { x: 0, y: 0 };
 	let currentSwipeId: string | null = null;
 	let swipeProgress = $state<Record<string, number>>({});
-	let addedItemsSet = $state(new Set<string>());
 	let isScrolled = $state(false);
 	let isScanning = $state(false);
 	let scanError = $state('');
@@ -74,7 +73,6 @@
 	onMount(() => {
 		(async () => {
 			const loadedItems = await getAllItems();
-			loadedItems.forEach((item: ShoppingItem) => addedItemsSet.add(item.text.toLowerCase()));
 
 			const archived = await getArchivedList();
 			const hasArchive = archived !== null;
@@ -110,7 +108,6 @@
 		const plainItems = JSON.parse(JSON.stringify(appState.items));
 		await archiveCurrentList(plainItems);
 		await clearAllItems();
-		addedItemsSet.clear();
 	}
 
 	async function restoreArchivedList() {
@@ -134,7 +131,6 @@
 			}
 
 			restoredItems.push({ ...restoredItem, done: item.done });
-			addedItemsSet.add(item.text.toLowerCase());
 		}
 
 		dispatch({ type: 'RESTORE_ARCHIVE', items: restoredItems });
@@ -150,19 +146,14 @@
 	}
 
 	async function addOrReactivateItem(itemText: string) {
-		const lowerText = itemText.toLowerCase();
+		const action = resolveItemAction(items, itemText);
 
-		if (addedItemsSet.has(lowerText)) {
-			const existingItem = items.find((i: ShoppingItem) => i.text.toLowerCase() === lowerText);
-
-			if (existingItem && existingItem.done) {
-				await toggleItemDone(existingItem.id);
-				dispatch({ type: 'ITEM_TOGGLED', id: existingItem.id });
-			}
-		} else {
+		if (action.kind === 'add') {
 			const newItem = await addItem(itemText);
 			dispatch({ type: 'ITEM_ADDED', item: newItem });
-			addedItemsSet.add(lowerText);
+		} else if (action.kind === 'uncheck') {
+			await toggleItemDone(action.id);
+			dispatch({ type: 'ITEM_TOGGLED', id: action.id });
 		}
 	}
 

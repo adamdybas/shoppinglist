@@ -61,7 +61,22 @@ yarn build
 
 # Preview production build
 yarn preview
+
+# Run unit tests
+yarn test
+
+# Format check + lint
+yarn lint
 ```
+
+## Testing 🧪
+
+The app is deliberately small, so the test suite ([Vitest](https://vitest.dev)) focuses on the logic where bugs would actually hurt, rather than chasing coverage:
+
+- **Input parsing** (`src/lib/list.test.ts`) — splitting typed input on `, ` / `. ` without breaking quantities like `1.5kg`
+- **Smart duplicates** (`src/lib/list.test.ts`) — the case-insensitive add / uncheck / skip rule that makes rescanning a photo an update instead of a re-add
+- **App state machine** (`src/lib/stateMachine.test.ts`) — every transition of the archive lifecycle: loading, active, all-done, archived, restore
+- **Almost-JSON parsing** (`src/lib/server/parseItems.test.ts`) — extracting the item array from real vision-model output: prose around it, markdown fences, single quotes, non-string entries, or no array at all
 
 ## Case study: scanning a real handwritten shopping list
 
