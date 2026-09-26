@@ -632,10 +632,10 @@
   resolved "https://registry.yarnpkg.com/@sveltejs/acorn-typescript/-/acorn-typescript-1.0.13.tgz#8c7c3cc7014e212f2e8fccee0159dbecfe602405"
   integrity sha512-wgKggnhZVL9Bfx1OaKKTrYY9BFRk6C8UAkQNUcIv1+llzYrIqy+RZm5HPKzn0NpEBvTVhTqB4kQyllZywsRBRQ==
 
-"@sveltejs/adapter-vercel@^6.2.0":
-  version "6.3.0"
-  resolved "https://registry.yarnpkg.com/@sveltejs/adapter-vercel/-/adapter-vercel-6.3.0.tgz#23aa58a2a6d4e0178978925ea5f5a620004e7c26"
-  integrity sha512-HhocZTJth+0LkJjuyhbRMcWyfL16xEI/4ihDnJd/oWAgcIEaNF9xEyFMCYuNQvxZ1tARoXNQDLM3DLQ2q6EwwQ==
+"@sveltejs/adapter-vercel@^6.3.2":
+  version "6.3.2"
+  resolved "https://registry.yarnpkg.com/@sveltejs/adapter-vercel/-/adapter-vercel-6.3.2.tgz#469829cb675dab6dfa911f9c343e5a20b31a91e1"
+  integrity sha512-b9zkpCDWb5iuNtSgSabd2jBekFk+2WaaH454bC5Kl1dH8Fxt9SP4k4nug/Yek+sLvceK8SKcuuRIFuI91GJ+wA==
   dependencies:
     "@vercel/nft" "^1.0.0"
     esbuild "^0.25.4"
