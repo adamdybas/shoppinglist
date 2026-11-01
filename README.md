@@ -51,6 +51,8 @@ It works offline by default, with one optional AI-assisted feature: photo scan f
 
 ## Development 🚀
 
+Use Node.js 22.17 or newer within the Node 22 release line (also used by CI and Vercel).
+
 ```bash
 # Install dependencies
 yarn install
@@ -127,7 +129,7 @@ key never reaches the browser or the repo.
    - `ANTHROPIC_API_KEY` — create at https://console.anthropic.com/settings/keys
 
 SvelteKit loads `.env.local` automatically and exposes it server-side only via
-`$env/dynamic/private`.
+`$app/env/private` (declared in `src/env.ts`).
 
 **Production (Vercel):**
 

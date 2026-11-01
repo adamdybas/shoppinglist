@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { AppState } from '$lib/stateMachine';
+	import type { AppState } from '#lib/stateMachine.js';
 
 	let {
 		stateType,

@@ -1,5 +1,5 @@
-// Server-only ($lib/server is never bundled to the client), so API keys stay put.
-import { env } from '$env/dynamic/private';
+// Server-only module: API keys never reach the browser.
+import * as env from '$app/env/private';
 import Anthropic from '@anthropic-ai/sdk';
 import { parseItems } from './parseItems';
 

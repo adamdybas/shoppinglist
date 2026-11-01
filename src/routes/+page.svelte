@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import ArchiveStatusMessage from '$lib/components/ArchiveStatusMessage.svelte';
-	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
-	import ListInput from '$lib/components/ListInput.svelte';
-	import ShoppingListItem from '$lib/components/ShoppingListItem.svelte';
+	import ArchiveStatusMessage from '#lib/components/ArchiveStatusMessage.svelte';
+	import ConfirmDialog from '#lib/components/ConfirmDialog.svelte';
+	import ListInput from '#lib/components/ListInput.svelte';
+	import ShoppingListItem from '#lib/components/ShoppingListItem.svelte';
 	import {
 		getAllItems,
 		addItem,
@@ -12,10 +12,10 @@
 		getArchivedList,
 		clearAllItems,
 		type ShoppingItem
-	} from '$lib/db';
-	import { parseItemsFromInput, resolveItemAction, shareList, scanPhoto } from '$lib/list';
-	import { transition, checkAllDone, type AppState, type AppEvent } from '$lib/stateMachine';
-	import { getSwipeProgress, type SwipeStart } from '$lib/swipe';
+	} from '#lib/db.js';
+	import { parseItemsFromInput, resolveItemAction, shareList, scanPhoto } from '#lib/list.js';
+	import { transition, checkAllDone, type AppState, type AppEvent } from '#lib/stateMachine.js';
+	import { getSwipeProgress, type SwipeStart } from '#lib/swipe.js';
 
 	let appState = $state<AppState>({ type: 'LOADING' });
 	let displayItems = $state<ShoppingItem[]>([]);

@@ -1,5 +1,5 @@
 import { error, json, isHttpError } from '@sveltejs/kit';
-import { scanImage } from '$lib/server/vision';
+import { scanImage } from '#lib/server/vision.js';
 import type { RequestHandler } from './$types';
 
 export const prerender = false;
