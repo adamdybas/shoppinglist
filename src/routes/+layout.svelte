@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import './layout.css';
-	import { injectAnalytics } from '$lib/analytics';
+	import { injectAnalytics } from '#lib/analytics.js';
 
 	let { children } = $props();
 

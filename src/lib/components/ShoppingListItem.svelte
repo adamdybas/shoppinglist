@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { fade } from 'svelte/transition';
-	import type { ShoppingItem } from '$lib/db';
+	import type { ShoppingItem } from '#lib/db.js';
 
 	let {
 		item,
